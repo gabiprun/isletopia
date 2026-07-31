@@ -230,7 +230,7 @@ static func _cave() -> Dictionary:
 			{"id": "shard_cave", "pos": Vector2(1900, 600)},
 		],
 		"doors": [
-			{"to": "cliffs", "spawn": "from_cave", "label": "Cliffs", "pos": Vector2(80, 820), "dir": Vector2.UP},
+			{"to": "cliffs", "spawn": "from_cave", "label": "Cliffs", "pos": Vector2(80, 820), "dir": Vector2.LEFT},
 		],
 		"spawns": {"default": Vector2(160, 820)},
 	}

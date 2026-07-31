@@ -180,6 +180,16 @@ func _run_smoke() -> void:
 		return
 
 	await _travel("under_dock")
+	# regression: swimming into the left wall must NOT trigger the Surface exit
+	w.player.global_position = Vector2(220, 500)
+	w.player.begin_hold(Vector2(-600, 500))
+	for i in range(90):
+		await get_tree().physics_frame
+		if w.room_id != "under_dock":
+			break
+	w.player.end_hold()
+	if not _check(w.room_id == "under_dock", "swimming left must not surface, got " + w.room_id):
+		return
 	await _grab("starfish")
 	await _travel("dock")
 	await _travel("street")
@@ -262,8 +272,51 @@ func _run_smoke() -> void:
 
 # ---------------------------------------------------------------- screenshots
 
+func _pose_sheet(dir: String) -> void:
+	## Renders the rig in every animation state so the faces can be eyeballed.
+	var root := Node2D.new()
+	var bg := ColorRect.new()
+	bg.color = Color("#cdeaf8")
+	bg.size = Vector2(1280, 720)
+	root.add_child(bg)
+	current_screen = root
+	add_child(root)
+	var poses := [
+		{"n": "idle", "s": {}},
+		{"n": "walk", "s": {"moving": true}},
+		{"n": "jump", "s": {"airborne": true, "vy": -600.0}},
+		{"n": "fall", "s": {"airborne": true, "vy": 500.0}},
+		{"n": "crouch", "s": {"crouching": true}},
+		{"n": "swim", "s": {"swimming": true, "moving": true}},
+		{"n": "talk", "s": {"talking": true}},
+		{"n": "flip", "s": {"moving": true, "facing": -1}},
+	]
+	var i := 0
+	for p in poses:
+		var rig := AvatarRig.new()
+		rig.apply_config({"skin": 1, "hair_style": 2, "hair_color": 3, "shirt": 4, "pants": 7})
+		rig.position = Vector2(110 + (i % 4) * 300, 260 + int(i / 4) * 330)
+		rig.scale = Vector2.ONE * 1.5
+		for k in p["s"]:
+			rig.set(k, p["s"][k])
+		root.add_child(rig)
+		var lbl := Label.new()
+		lbl.text = str(p["n"])
+		lbl.add_theme_font_size_override("font_size", 22)
+		lbl.add_theme_color_override("font_color", Color("#22292f"))
+		lbl.position = rig.position + Vector2(-40, 20)
+		root.add_child(lbl)
+		i += 1
+	for f in range(30):
+		await get_tree().process_frame
+	var img := get_viewport().get_texture().get_image()
+	img.save_png(dir.path_join("poses.png"))
+	print("shot: poses")
+
+
 func _run_shots(dir: String) -> void:
 	DirAccess.make_dir_recursive_absolute(dir)
+	await _pose_sheet(dir)
 	Game.reset_new_game()
 	Game.player_name = "Brave Falcon"
 	var targets := [

@@ -491,10 +491,14 @@ func _check_edge_travel() -> void:
 	for door in _doors:
 		if door.is_exit_island:
 			continue  # leaving the island stays a deliberate tap on the blimp
-		if at_left and door.position.x < size.x * 0.25:
+		# only doors that actually lead sideways — a "Surface"/"Dive" exit that
+		# happens to sit near the edge must not trigger from walking into it
+		if absf(door.arrow_dir.x) < 0.5:
+			continue
+		if at_left and door.arrow_dir.x < 0 and door.position.x < size.x * 0.25:
 			if best == null or door.position.x < best.position.x:
 				best = door
-		elif at_right and door.position.x > size.x * 0.75:
+		elif at_right and door.arrow_dir.x > 0 and door.position.x > size.x * 0.75:
 			if best == null or door.position.x > best.position.x:
 				best = door
 	if best:

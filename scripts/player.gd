@@ -17,6 +17,7 @@ var rig: AvatarRig
 var name_label: Label
 var swim_mode := false
 var input_locked := false
+var crouching := false
 
 var _target_x := NAN
 var _jump_queued := false
@@ -120,8 +121,21 @@ func _walk(delta: float) -> void:
 		velocity.y += (GRAVITY if velocity.y < 0 else FALL_GRAVITY) * delta
 		velocity.y = minf(velocity.y, 1300.0)
 
+	# crouch: hold Down/S on the ground
+	crouching = on_floor and not input_locked \
+		and (Input.is_physical_key_pressed(KEY_DOWN) or Input.is_physical_key_pressed(KEY_S))
+	if crouching:
+		_target_x = NAN
+		_hold_active = false
+
 	# horizontal intent: keyboard > held pointer > tap target
 	var dir := 0.0
+	if crouching:
+		velocity.x = move_toward(velocity.x, 0.0, DECEL * 2.0 * delta)
+		move_and_slide()
+		_coyote = 0.12
+		_was_on_floor = true
+		return
 	if not input_locked:
 		if Input.is_physical_key_pressed(KEY_LEFT) or Input.is_physical_key_pressed(KEY_A):
 			dir = -1.0
@@ -209,6 +223,8 @@ func _swim(delta: float) -> void:
 func _update_rig() -> void:
 	rig.swimming = swim_mode
 	rig.airborne = not is_on_floor() and not swim_mode
+	rig.crouching = crouching
+	rig.vy = velocity.y
 	rig.moving = absf(velocity.x) > 15.0 or (swim_mode and velocity.length() > 20.0)
 	if absf(velocity.x) > 10.0:
 		rig.facing = 1 if velocity.x > 0 else -1
