@@ -20,6 +20,7 @@ var _npcs := []
 var _items := []
 var _doors := []
 var _pending := {}  # {"kind": "npc"/"door", "node": Node}
+var _edge_cooldown := 0.0
 
 
 static func cond_ok(cond: Dictionary) -> bool:
@@ -172,6 +173,8 @@ func build_room(id: String, spawn_key := "default", keep_pos := Vector2.INF) -> 
 	player.global_position = spawn_pos
 	player.velocity = Vector2.ZERO
 	player.clear_target()
+	_edge_cooldown = 0.5
+	_pressing = false
 	player.swim_mode = room.get("swim", false)
 	camera.reset_smoothing()
 
@@ -300,41 +303,139 @@ func _setup_particles(size: Vector2) -> void:
 
 # ---------- input ----------
 
+const TAP_TIME := 0.25   # press/release faster than this counts as a tap
+const TAP_SLOP := 24.0   # ...and moved less than this many pixels
+
+var _press_pos := Vector2.INF
+var _press_time := 0.0
+var _pressing := false
+
+
 func _unhandled_input(event: InputEvent) -> void:
-	var tap_pos := Vector2.INF
-	if event is InputEventScreenTouch and event.pressed:
-		tap_pos = event.position
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		# only when touch emulation is off (avoid double-fire)
-		if not ProjectSettings.get_setting("input_devices/pointing/emulate_touch_from_mouse", false):
-			tap_pos = event.position
-	if tap_pos == Vector2.INF:
+	# keyboard: E talks to the nearest NPC / advances dialog
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
+		if dialog.active:
+			dialog.advance()
+		elif not hud.is_blocking():
+			_talk_nearest()
+		return
+	# Enter acts like a click: advance dialog, else interact with what's nearest
+	if event is InputEventKey and event.pressed and not event.echo \
+			and event.keycode in [KEY_ENTER, KEY_KP_ENTER]:
+		if dialog.active:
+			dialog.advance()
+		elif not hud.is_blocking():
+			_interact_nearest()
+		return
+	if event is InputEventKey and event.pressed and not event.echo \
+			and event.keycode == KEY_SPACE and dialog.active:
+		dialog.advance()
+		return
+
+	# pointer: press / drag / release
+	var pos := Vector2.INF
+	var phase := ""
+	if event is InputEventScreenTouch:
+		pos = event.position
+		phase = "down" if event.pressed else "up"
+	elif event is InputEventScreenDrag:
+		pos = event.position
+		phase = "move"
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT \
+			and not ProjectSettings.get_setting("input_devices/pointing/emulate_touch_from_mouse", false):
+		pos = event.position
+		phase = "down" if event.pressed else "up"
+	elif event is InputEventMouseMotion and _pressing \
+			and not ProjectSettings.get_setting("input_devices/pointing/emulate_touch_from_mouse", false):
+		pos = event.position
+		phase = "move"
+	if phase == "":
 		return
 
 	if dialog.active:
-		dialog.advance()
+		if phase == "down":
+			dialog.advance()
 		return
-	if hud.is_blocking():
-		return
-	if player.input_locked:
+	if hud.is_blocking() or player.input_locked:
 		return
 
-	var wp: Vector2 = get_canvas_transform().affine_inverse() * tap_pos
+	var wp: Vector2 = get_canvas_transform().affine_inverse() * pos
 
-	# doors first (they're small targets)
-	for door in _doors:
-		if wp.distance_to(door.global_position + Vector2(0, -40)) < 55.0:
-			_request_door(door)
-			return
-	# npcs: tap anywhere on the body
+	match phase:
+		"down":
+			_pressing = true
+			_press_pos = pos
+			_press_time = float(Time.get_ticks_msec()) / 1000.0
+			# doors and NPCs resolve immediately on press
+			for door in _doors:
+				if wp.distance_to(door.global_position + Vector2(0, -40)) < 60.0:
+					_pressing = false
+					_request_door(door)
+					return
+			for npc in _npcs:
+				if _npc_rect(npc).has_point(wp):
+					_pressing = false
+					_request_npc(npc)
+					return
+			player.begin_hold(wp)
+		"move":
+			if _pressing:
+				player.update_hold(wp)
+		"up":
+			if not _pressing:
+				return
+			_pressing = false
+			player.end_hold()
+			var held := float(Time.get_ticks_msec()) / 1000.0 - _press_time
+			var moved := pos.distance_to(_press_pos)
+			# a quick tap well above the player means "jump"
+			if held < TAP_TIME and moved < TAP_SLOP:
+				if wp.y < player.global_position.y - 90.0:
+					player.request_jump()
+					player.set_move_target(wp)
+				else:
+					player.set_move_target(wp)
+
+
+func _npc_rect(npc: NPC) -> Rect2:
+	var top: Vector2 = npc.head_pos()
+	var half := 44.0 * npc.rig.scale.x
+	return Rect2(top.x - half, top.y - 30.0, half * 2.0, npc.global_position.y - top.y + 40.0)
+
+
+func _talk_nearest() -> void:
+	var best: NPC = null
+	var best_d := 190.0
 	for npc in _npcs:
-		var top: Vector2 = npc.head_pos()
-		var r := Rect2(top.x - 40 * npc.rig.scale.x, top.y - 30, 80 * npc.rig.scale.x, npc.global_position.y - top.y + 40)
-		if r.has_point(wp):
-			_request_npc(npc)
-			return
-	# plain move
-	player.set_move_target(wp)
+		var d: float = player.global_position.distance_to(npc.global_position)
+		if d < best_d:
+			best_d = d
+			best = npc
+	if best:
+		_talk(best)
+
+
+func _interact_nearest() -> void:
+	## Enter/click-equivalent: prefer an NPC in range, else a door in range.
+	var best_npc: NPC = null
+	var best_d := 190.0
+	for npc in _npcs:
+		var d: float = player.global_position.distance_to(npc.global_position)
+		if d < best_d:
+			best_d = d
+			best_npc = npc
+	if best_npc:
+		_talk(best_npc)
+		return
+	var best_door: Door = null
+	var door_d := 150.0
+	for door in _doors:
+		var d: float = player.global_position.distance_to(door.global_position)
+		if d < door_d:
+			door_d = d
+			best_door = door
+	if best_door:
+		_travel(best_door)
 
 
 func _request_door(door: Door) -> void:
@@ -358,7 +459,9 @@ func _on_player_arrived() -> void:
 	_check_pending(true)
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
+	_edge_cooldown = maxf(_edge_cooldown - delta, 0.0)
+	_check_edge_travel()
 	_check_pending(false)
 	# item pickup by proximity
 	for item in _items.duplicate():
@@ -367,6 +470,35 @@ func _physics_process(_delta: float) -> void:
 		if player.global_position.distance_to(item.global_position + Vector2(0, 40)) < 62.0 \
 				or player.global_position.distance_to(item.global_position) < 62.0:
 			_pick_item(item)
+
+
+func _check_edge_travel() -> void:
+	## Walking into the left/right boundary carries you to the adjoining room.
+	if _edge_cooldown > 0.0 or dialog.active or player.input_locked or hud.is_blocking():
+		return
+	var size: Vector2 = room.get("size", Vector2(2400, 720))
+	var margin := 44.0
+	var at_left := player.global_position.x <= margin
+	var at_right := player.global_position.x >= size.x - margin
+	if not at_left and not at_right:
+		return
+	# only when actually pushing that way (not just standing at the wall)
+	if at_left and player.velocity.x > -20.0:
+		return
+	if at_right and player.velocity.x < 20.0:
+		return
+	var best: Door = null
+	for door in _doors:
+		if door.is_exit_island:
+			continue  # leaving the island stays a deliberate tap on the blimp
+		if at_left and door.position.x < size.x * 0.25:
+			if best == null or door.position.x < best.position.x:
+				best = door
+		elif at_right and door.position.x > size.x * 0.75:
+			if best == null or door.position.x > best.position.x:
+				best = door
+	if best:
+		_travel(best)
 
 
 func _check_pending(arrived: bool) -> void:

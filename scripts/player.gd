@@ -22,6 +22,10 @@ var _target_x := NAN
 var _jump_queued := false
 var _swim_target := Vector2.INF
 var _was_on_floor := true
+var _hold_active := false
+var _hold_x := 0.0
+var _coyote := 0.0
+var _jump_buffer := 0.0
 
 
 func _ready() -> void:
@@ -50,19 +54,47 @@ func _ready() -> void:
 
 
 func set_move_target(p: Vector2) -> void:
+	## Walk to a point (used for tap-to-move and auto-approach). Never jumps.
 	if input_locked:
 		return
 	_target_x = p.x
 	if swim_mode:
 		_swim_target = p
-	elif p.y < global_position.y - 70 and absf(p.x - global_position.x) < 260:
+
+
+func begin_hold(p: Vector2) -> void:
+	## Pointer pressed: start walking toward it and keep walking while held.
+	if input_locked:
+		return
+	_hold_active = true
+	_hold_x = p.x
+	_target_x = NAN
+	if swim_mode:
+		_swim_target = p
+
+
+func update_hold(p: Vector2) -> void:
+	if _hold_active and not input_locked:
+		_hold_x = p.x
+		if swim_mode:
+			_swim_target = p
+
+
+func end_hold() -> void:
+	_hold_active = false
+
+
+func request_jump() -> void:
+	if not input_locked:
 		_jump_queued = true
+		_jump_buffer = 0.15
 
 
 func clear_target() -> void:
 	_target_x = NAN
 	_swim_target = Vector2.INF
 	_jump_queued = false
+	_hold_active = false
 
 
 func _physics_process(delta: float) -> void:
@@ -88,15 +120,21 @@ func _walk(delta: float) -> void:
 		velocity.y += (GRAVITY if velocity.y < 0 else FALL_GRAVITY) * delta
 		velocity.y = minf(velocity.y, 1300.0)
 
-	# horizontal intent
+	# horizontal intent: keyboard > held pointer > tap target
 	var dir := 0.0
 	if not input_locked:
 		if Input.is_physical_key_pressed(KEY_LEFT) or Input.is_physical_key_pressed(KEY_A):
 			dir = -1.0
 			_target_x = NAN
+			_hold_active = false
 		elif Input.is_physical_key_pressed(KEY_RIGHT) or Input.is_physical_key_pressed(KEY_D):
 			dir = 1.0
 			_target_x = NAN
+			_hold_active = false
+		elif _hold_active:
+			var hdx := _hold_x - global_position.x
+			if absf(hdx) > 6.0:
+				dir = signf(hdx)
 		elif not is_nan(_target_x):
 			var dx := _target_x - global_position.x
 			if absf(dx) > 8.0:
@@ -112,22 +150,31 @@ func _walk(delta: float) -> void:
 	else:
 		velocity.x = move_toward(velocity.x, 0.0, decel * delta)
 
-	# jump
+	# coyote time: brief grace after walking off a ledge
+	if on_floor:
+		_coyote = 0.12
+	else:
+		_coyote = maxf(_coyote - delta, 0.0)
+
+	# jump (keyboard held, or a queued tap-jump buffered until landing)
 	var want_jump := false
 	if not input_locked:
 		want_jump = Input.is_physical_key_pressed(KEY_SPACE) \
 			or Input.is_physical_key_pressed(KEY_UP) or Input.is_physical_key_pressed(KEY_W)
-	if _jump_queued and on_floor:
-		want_jump = true
-		_jump_queued = false
-	if want_jump and on_floor:
+	if _jump_queued:
+		if _coyote > 0.0:
+			want_jump = true
+			_jump_queued = false
+		else:
+			_jump_buffer = maxf(_jump_buffer - delta, 0.0)
+			if _jump_buffer <= 0.0:
+				_jump_queued = false
+	if want_jump and _coyote > 0.0:
 		velocity.y = JUMP_VEL
+		_coyote = 0.0
 		Game.sfx("jump")
 
 	move_and_slide()
-
-	if is_on_floor() and not _was_on_floor:
-		pass  # landed
 	_was_on_floor = is_on_floor()
 
 

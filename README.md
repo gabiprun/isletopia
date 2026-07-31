@@ -14,8 +14,22 @@ one codebase targeting **Web, Android, iOS**. All art is code-drawn vector
   starfish trade at the market)
 - **Frost Peak** (3 rooms): the yeti borrowed the Festival Bell — icy one-way
   platforms, a yarn fetch, and a hand-knitted giant hat
-- Tap/click to walk, tap above to jump (or arrows/WASD + space). Tap NPCs to
-  talk, glowing items to collect, arrow badges to change rooms.
+### Controls
+
+| Input | Action |
+|---|---|
+| Press **and hold** anywhere | Walk that way, continuously (drag to steer; never jumps) |
+| Quick tap **above** the character | Jump |
+| Quick tap on ground | Walk there |
+| Tap an NPC / door / item | Talk / travel / collect |
+| **E** | Talk to the nearest NPC — no clicking |
+| **Enter** | Acts like a click: advance dialog, else interact with what's nearest |
+| Arrows / WASD | Walk, **Space / Up / W** jump |
+| **Walk into the left or right edge** | Auto-travels to the adjoining room |
+
+Jumps have coyote time (0.12s after leaving a ledge) and a 0.15s input buffer,
+so late or early presses still register. Leaving an island by blimp stays a
+deliberate tap, so you can't wander off the map by accident.
 - Auto-saves after every quest step; Continue resumes island + room.
 
 ## Run locally

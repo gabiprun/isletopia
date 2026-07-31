@@ -120,6 +120,61 @@ func _run_smoke() -> void:
 	await _frames(5)
 	if not _check(_world() != null and _world().room_id == "dock", "ember should start at dock"):
 		return
+
+	# hold-to-walk must never auto-jump, and must keep walking while held
+	var w := _world()
+	w.player.global_position = Vector2(1400, 620)  # open sand, room to walk
+	await _frames(2)
+	var start_x: float = w.player.global_position.x
+	w.player.begin_hold(w.player.global_position + Vector2(-400, -300))  # held well ABOVE
+	var jumped := false
+	for i in range(30):
+		await get_tree().physics_frame
+		if w.player.velocity.y < -200.0:  # upward launch == a jump
+			jumped = true
+	w.player.end_hold()
+	if not _check(not jumped, "hold above player must not jump"):
+		return
+	if not _check(w.player.global_position.x < start_x - 100.0, "hold should keep walking left"):
+		return
+	# a deliberate upward tap DOES jump
+	w.player.global_position = Vector2(1400, 620)
+	await _frames(4)
+	w.player.request_jump()
+	var launched := false
+	for i in range(20):
+		await get_tree().physics_frame
+		if w.player.velocity.y < -200.0:
+			launched = true
+	if not _check(launched, "tap-jump should leave the ground"):
+		return
+	var guard2 := 0
+	while not w.player.is_on_floor() and guard2 < 200:
+		await get_tree().physics_frame
+		guard2 += 1
+
+	# walking into the right edge should auto-travel to the next room
+	var dock_size: Vector2 = w.room.get("size", Vector2(2400, 720))
+	w.player.global_position.x = dock_size.x - 260.0
+	w.player.begin_hold(Vector2(dock_size.x + 600.0, w.player.global_position.y))
+	for i in range(120):
+		await get_tree().physics_frame
+		if w.room_id != "dock":
+			break
+	w.player.end_hold()
+	if not _check(w.room_id == "street", "edge-walk should travel to street, got " + w.room_id):
+		return
+	# E talks to the nearest NPC (no clicking)
+	w.build_room("dock", "default")
+	await _frames(3)
+	w.player.global_position = Vector2(700, 560)
+	await _frames(2)
+	w._talk_nearest()
+	await _frames(2)
+	if not _check(w.dialog.active, "E should open dialog with the nearby NPC"):
+		return
+	await _drain_dialog()
+	await _frames(2)
 	await _talk("harbormaster")
 	if not _check(Game.flag("met_harbormaster"), "met_harbormaster flag"):
 		return
