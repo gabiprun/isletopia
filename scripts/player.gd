@@ -18,6 +18,12 @@ var name_label: Label
 var swim_mode := false
 var input_locked := false
 var crouching := false
+var rolling := false
+
+const ROLL_SPEED := 430.0
+const ROLL_DECEL := 260.0
+
+var _roll_dir := 1.0
 
 var _target_x := NAN
 var _jump_queued := false
@@ -121,9 +127,25 @@ func _walk(delta: float) -> void:
 		velocity.y += (GRAVITY if velocity.y < 0 else FALL_GRAVITY) * delta
 		velocity.y = minf(velocity.y, 1300.0)
 
-	# crouch: hold Down/S on the ground
-	crouching = on_floor and not input_locked \
+	# Down/S: roll if already moving, otherwise crouch
+	var down_held := not input_locked and on_floor \
 		and (Input.is_physical_key_pressed(KEY_DOWN) or Input.is_physical_key_pressed(KEY_S))
+	if rolling:
+		# stay rolling until you slow down or let go
+		rolling = down_held and absf(velocity.x) > 90.0
+	elif down_held and absf(velocity.x) > 120.0:
+		rolling = true
+		_roll_dir = signf(velocity.x)
+		Game.sfx("jump")
+	crouching = down_held and not rolling
+
+	if rolling:
+		velocity.x = move_toward(velocity.x, _roll_dir * ROLL_SPEED, ROLL_DECEL * delta)
+		move_and_slide()
+		_coyote = 0.12
+		_was_on_floor = true
+		return
+
 	if crouching:
 		_target_x = NAN
 		_hold_active = false
@@ -186,6 +208,7 @@ func _walk(delta: float) -> void:
 	if want_jump and _coyote > 0.0:
 		velocity.y = JUMP_VEL
 		_coyote = 0.0
+		rig.flipping = true  # somersault through the air
 		Game.sfx("jump")
 
 	move_and_slide()
@@ -224,6 +247,7 @@ func _update_rig() -> void:
 	rig.swimming = swim_mode
 	rig.airborne = not is_on_floor() and not swim_mode
 	rig.crouching = crouching
+	rig.rolling = rolling
 	rig.vy = velocity.y
 	rig.moving = absf(velocity.x) > 15.0 or (swim_mode and velocity.length() > 20.0)
 	if absf(velocity.x) > 10.0:

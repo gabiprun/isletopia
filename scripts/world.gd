@@ -132,6 +132,7 @@ func build_room(id: String, spawn_key := "default", keep_pos := Vector2.INF) -> 
 		var prop := Prop.new()
 		prop.setup(resolved)
 		_room_root.add_child(prop)
+		_make_prop_collision(prop)
 
 	# npcs
 	for ndef in room.get("npcs", []):
@@ -215,6 +216,25 @@ func _make_platform(pdef: Dictionary) -> void:
 	vis.rect = Rect2(-rect.size / 2.0, rect.size)
 	vis.kind = pdef.get("kind", "grass")
 	body.add_child(vis)
+
+
+func _make_prop_collision(prop: Prop) -> void:
+	var shapes: Array = prop.solid_shapes()
+	if shapes.is_empty():
+		return
+	var body := StaticBody2D.new()
+	body.position = prop.position
+	body.set_meta("kind", "prop")
+	for s in shapes:
+		var rect: Rect2 = s["rect"]
+		var cs := CollisionShape2D.new()
+		var box := RectangleShape2D.new()
+		box.size = rect.size
+		cs.shape = box
+		cs.position = rect.position + rect.size / 2.0
+		cs.one_way_collision = s.get("one_way", true)
+		body.add_child(cs)
+	_room_root.add_child(body)
 
 
 func _make_wall(rect: Rect2) -> void:

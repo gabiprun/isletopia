@@ -72,19 +72,71 @@ func _house() -> void:
 	var roof: Color = p.get("roof", Color("#c0504a"))
 	draw_rect(Rect2(-w / 2, -h, w, h), body)
 	draw_rect(Rect2(-w / 2, -h, w, h), body.darkened(0.25), false, 3.0)
-	# roof
+	# flat-topped roof, so there's somewhere to stand
+	var ridge := roof_top_y()
+	var flat := w * 0.22
 	var rr := PackedVector2Array([
-		Vector2(-w / 2 - 18, -h), Vector2(w / 2 + 18, -h), Vector2(0, -h - w * 0.34),
+		Vector2(-w / 2 - 18, -h), Vector2(w / 2 + 18, -h),
+		Vector2(flat, ridge), Vector2(-flat, ridge),
 	])
-	draw_polygon(rr, PackedColorArray([roof, roof, roof]))
+	draw_polygon(rr, PackedColorArray([roof, roof, roof, roof]))
+	draw_rect(Rect2(-flat - 4, ridge - 5, flat * 2 + 8, 7), roof.darkened(0.25))
+	# climbing ledge (awning board under the windows)
+	var ly := ledge_y()
+	draw_rect(Rect2(-w * 0.42, ly - 7, w * 0.84, 9), roof.darkened(0.15))
+	for i in range(3):
+		var bx := -w * 0.3 + i * w * 0.3
+		draw_line(Vector2(bx, ly), Vector2(bx, ly + 12), body.darkened(0.35), 3.0)
 	# door
 	var dw := w * 0.22
 	draw_rect(Rect2(-dw / 2, -dw * 2.0, dw, dw * 2.0), body.darkened(0.5))
 	draw_circle(Vector2(dw * 0.28, -dw * 0.9), 3.0, Color("#d8a12c"))
 	# windows
 	for wx in [-w * 0.3, w * 0.3]:
-		draw_rect(Rect2(wx - w * 0.09, -h * 0.72, w * 0.18, w * 0.18), Color("#9ad8f0"))
-		draw_rect(Rect2(wx - w * 0.09, -h * 0.72, w * 0.18, w * 0.18), body.darkened(0.4), false, 2.5)
+		draw_rect(Rect2(wx - w * 0.09, -h * 0.78, w * 0.18, w * 0.18), Color("#9ad8f0"))
+		draw_rect(Rect2(wx - w * 0.09, -h * 0.78, w * 0.18, w * 0.18), body.darkened(0.4), false, 2.5)
+
+
+func roof_top_y() -> float:
+	return -(p.get("h", 200.0) + p.get("w", 260.0) * 0.28)
+
+
+func ledge_y() -> float:
+	return -p.get("h", 200.0) * 0.62
+
+
+func solid_shapes() -> Array:
+	## One-way platforms let you walk in front of a prop and land on top of it,
+	## so nothing can ever trap the player inside scenery.
+	if not p.get("solid", true):
+		return []
+	match type:
+		"house":
+			var w: float = p.get("w", 260.0)
+			return [
+				{"rect": Rect2(-w * 0.22 - 4, roof_top_y() - 5, w * 0.44 + 8, 12), "one_way": true},
+				{"rect": Rect2(-w * 0.42, ledge_y() - 7, w * 0.84, 11), "one_way": true},
+			]
+		"stall":
+			var w: float = p.get("w", 220.0)
+			return [
+				{"rect": Rect2(-w / 2 - 20, -200, w + 40, 12), "one_way": true},
+				{"rect": Rect2(-w / 2, -78, w, 12), "one_way": true},
+			]
+		"crate":
+			var s: float = p.get("s", 56.0)
+			return [{"rect": Rect2(-s / 2, -s, s, 12), "one_way": true}]
+		"boat":
+			return [{"rect": Rect2(-88, -32, 176, 12), "one_way": true}]
+		"rock":
+			var s: float = p.get("s", 50.0)
+			return [{"rect": Rect2(-s * 0.72, -s * 0.74, s * 1.44, 12), "one_way": true}]
+		"lighthouse":
+			var hh: float = p.get("h", 420.0)
+			return [{"rect": Rect2(-56, -hh - 14, 112, 14), "one_way": true}]
+		"bellstand":
+			return [{"rect": Rect2(-80, -196, 160, 12), "one_way": true}]
+	return []
 
 
 func _stall() -> void:

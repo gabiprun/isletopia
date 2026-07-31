@@ -223,6 +223,28 @@ func _run_smoke() -> void:
 		return
 	print("SMOKE: ember complete")
 
+	# ---- every rooftop must be climbable: ground -> ledge -> roof ----
+	var max_jump: float = (Player.JUMP_VEL * Player.JUMP_VEL) / (2.0 * Player.GRAVITY)
+	var reach := max_jump - 18.0  # leave room for the body/landing
+	for island_id in IslandRegistry.list_islands():
+		var isl := IslandRegistry.get_island(island_id)
+		for rname in isl["rooms"]:
+			for pdef in isl["rooms"][rname].get("props", []):
+				if pdef.get("type", "") != "house":
+					continue
+				var pr := Prop.new()
+				pr.setup(pdef)
+				var ledge: float = absf(pr.ledge_y())
+				var roof: float = absf(pr.roof_top_y())
+				pr.free()
+				if not _check(ledge <= reach,
+						"%s/%s house ledge unreachable (%.0f > %.0f)" % [island_id, rname, ledge, reach]):
+					return
+				if not _check(roof - ledge <= reach,
+						"%s/%s roof unreachable from ledge (%.0f > %.0f)" % [island_id, rname, roof - ledge, reach]):
+					return
+	print("SMOKE: rooftops reachable")
+
 	# ---- Frost Peak ----
 	switch_screen("world", {"island": "frost"})
 	await _frames(5)
@@ -289,14 +311,18 @@ func _pose_sheet(dir: String) -> void:
 		{"n": "crouch", "s": {"crouching": true}},
 		{"n": "swim", "s": {"swimming": true, "moving": true}},
 		{"n": "talk", "s": {"talking": true}},
-		{"n": "flip", "s": {"moving": true, "facing": -1}},
+		{"n": "roll", "s": {"rolling": true, "moving": true, "spin": 0.9}},
+		{"n": "flip a", "s": {"airborne": true, "flipping": true, "vy": -400.0, "spin": 0.0}},
+		{"n": "flip b", "s": {"airborne": true, "flipping": true, "vy": 100.0, "spin": PI * 0.6}},
+		{"n": "flip c", "s": {"airborne": true, "flipping": true, "vy": 400.0, "spin": PI * 1.2}},
+		{"n": "turned", "s": {"moving": true, "facing": -1}},
 	]
 	var i := 0
 	for p in poses:
 		var rig := AvatarRig.new()
 		rig.apply_config({"skin": 1, "hair_style": 2, "hair_color": 3, "shirt": 4, "pants": 7})
-		rig.position = Vector2(110 + (i % 4) * 300, 260 + int(i / 4) * 330)
-		rig.scale = Vector2.ONE * 1.5
+		rig.position = Vector2(100 + (i % 6) * 208, 250 + int(i / 6) * 320)
+		rig.scale = Vector2.ONE * 1.15
 		for k in p["s"]:
 			rig.set(k, p["s"][k])
 		root.add_child(rig)

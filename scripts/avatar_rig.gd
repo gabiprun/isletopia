@@ -36,7 +36,14 @@ var airborne := false
 var swimming := false
 var talking := false
 var crouching := false
+var rolling := false
 var vy := 0.0  # vertical velocity, so we can tell rising from falling
+
+const FLIP_RATE := 7.2   # rad/s somersault while airborne
+const ROLL_RATE := 13.0  # rad/s while rolling on the ground
+
+var spin := 0.0        # somersault / roll rotation
+var flipping := false  # set by the player on a real jump
 
 var _walk_phase := 0.0
 var _blink := 0.0
@@ -90,8 +97,23 @@ func _process(delta: float) -> void:
 	if swimming:
 		_walk_phase += delta * 4.0
 
-	# turn: animate the mirror so the body physically flips
+	# turn: animate the mirror so the body swings around to face the other way
 	_face_v = move_toward(_face_v, float(facing), FLIP_SPEED * delta)
+
+	# somersault in the air, forward roll on the ground
+	if rolling:
+		spin += float(facing) * ROLL_RATE * delta
+	elif flipping and airborne:
+		spin += float(facing) * FLIP_RATE * delta
+	elif absf(spin) > 0.001:
+		# land on your feet: unwind to the nearest whole turn
+		var target: float = roundf(spin / TAU) * TAU
+		spin = move_toward(spin, target, 18.0 * delta)
+		if is_equal_approx(spin, target):
+			spin = 0.0
+			flipping = false
+	if not airborne and not rolling:
+		flipping = false
 
 	# crouch blend
 	_crouch_v = move_toward(_crouch_v, 1.0 if crouching else 0.0, delta * 9.0)
@@ -116,6 +138,8 @@ func _process(delta: float) -> void:
 
 
 func _expression() -> String:
+	if rolling:
+		return "roll"
 	if _land_t > 0.0:
 		return "land"
 	if airborne and not swimming:
@@ -143,11 +167,17 @@ func _draw() -> void:
 	sy -= 0.30 * _crouch_v
 	var sx := 1.0 / sy  # keep the silhouette's volume roughly constant
 
-	# mirrored turn: pinch through zero as they spin around
+	# mirrored turn: pinch through zero as they swing around to face the other way
 	var mirror := _face_v
 	if absf(mirror) < 0.08:
 		mirror = 0.08 * (1.0 if mirror >= 0.0 else -1.0)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2(mirror * sx, sy))
+	# somersault/roll rotates the whole body about its middle
+	var pivot := Vector2(0, -52)
+	var to_pivot := Transform2D(0.0, Vector2.ONE, 0.0, pivot)
+	var rot := Transform2D(spin, Vector2.ZERO)
+	var scale_x := Transform2D(0.0, Vector2(mirror * sx, sy), 0.0, Vector2.ZERO)
+	var from_pivot := Transform2D(0.0, Vector2.ONE, 0.0, -pivot)
+	draw_set_transform_matrix(to_pivot * rot * scale_x * from_pivot)
 
 	var bob := sin(_idle_phase) * 1.2 if (not moving and expr == "idle") else 0.0
 	var swing := sin(_walk_phase) * 0.7 if (moving and not airborne and not crouching) else 0.0
@@ -156,6 +186,28 @@ func _draw() -> void:
 
 	var hip := Vector2(0, -34 + bob)
 	var leg_len := 34.0
+
+	# --- rolling: tucked into a ball, drawn compactly and bailing out early ---
+	if rolling:
+		var ball := Vector2(0, -34)
+		_capsule(ball + Vector2(-6, 4), ball + Vector2(-16, 16), 9, pants)
+		_capsule(ball + Vector2(6, 4), ball + Vector2(16, 14), 9, pants)
+		draw_circle(ball + Vector2(-16, 16), 6.5, Color("#3a3a3a"))
+		draw_circle(ball + Vector2(16, 14), 6.5, Color("#3a3a3a"))
+		_capsule(ball + Vector2(0, -4), ball + Vector2(2, 10), 15, shirt)
+		_capsule(ball + Vector2(-10, 0), ball + Vector2(-18, 8), 6, skin)
+		_capsule(ball + Vector2(10, 0), ball + Vector2(18, 6), 6, skin)
+		var rhead := ball + Vector2(4, -26)
+		draw_circle(rhead, 22, skin)
+		if shaggy:
+			_draw_shaggy(rhead)
+		_draw_hair(rhead, "roll")
+		# eyes shut, mouth a tight line
+		draw_arc(rhead + Vector2(0, 0), 4.0, PI, TAU, 8, Color.BLACK, 2.2)
+		draw_arc(rhead + Vector2(12, 0), 4.0, PI, TAU, 8, Color.BLACK, 2.2)
+		draw_line(rhead + Vector2(2, 11), rhead + Vector2(11, 11), Color("#7a3b2e"), 2.2)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		return
 
 	# --- legs ---
 	if crouching and not airborne and not swimming:
