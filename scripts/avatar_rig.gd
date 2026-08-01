@@ -19,8 +19,6 @@ const CLOTH_COLORS := [
 ]
 const HAIR_STYLE_COUNT := 7  # 0 bald, 1 crop, 2 spiky, 3 bowl, 4 ponytail, 5 curly, 6 long
 
-const FLIP_SPEED := 13.0
-
 # Resolved look
 var skin := SKIN_TONES[1]
 var hair_color := HAIR_COLORS[2]
@@ -97,8 +95,9 @@ func _process(delta: float) -> void:
 	if swimming:
 		_walk_phase += delta * 4.0
 
-	# turn: animate the mirror so the body swings around to face the other way
-	_face_v = move_toward(_face_v, float(facing), FLIP_SPEED * delta)
+	# turn: mirror instantly. Animating through zero made the body squash to a
+	# sliver and swing round like a paper cutout.
+	_face_v = float(facing)
 
 	# somersault in the air, forward roll on the ground
 	if rolling:
@@ -167,10 +166,7 @@ func _draw() -> void:
 	sy -= 0.30 * _crouch_v
 	var sx := 1.0 / sy  # keep the silhouette's volume roughly constant
 
-	# mirrored turn: pinch through zero as they swing around to face the other way
-	var mirror := _face_v
-	if absf(mirror) < 0.08:
-		mirror = 0.08 * (1.0 if mirror >= 0.0 else -1.0)
+	var mirror := 1.0 if _face_v >= 0.0 else -1.0
 	# somersault/roll rotates the whole body about its middle
 	var pivot := Vector2(0, -52)
 	var to_pivot := Transform2D(0.0, Vector2.ONE, 0.0, pivot)

@@ -4,7 +4,6 @@ extends Node
 const SCREENS := {
 	"title": preload("res://scripts/title_screen.gd"),
 	"creator": preload("res://scripts/char_creator.gd"),
-	"profiles": preload("res://scripts/profile_screen.gd"),
 	"map": preload("res://scripts/map_screen.gd"),
 	"world": preload("res://scripts/world.gd"),
 }
@@ -66,28 +65,22 @@ func _world() -> World:
 	return current_screen as World
 
 
-func _drain_dialog(choice := -1) -> void:
-	## Advances to the end. If the entry offers choices, picks `choice`
-	## (defaults to the last option, which is always the "decline" branch).
+func _drain_dialog() -> void:
 	var w := _world()
 	var guard := 0
 	while w.dialog.active and guard < 200:
-		if w.dialog.has_choices():
-			var pick := choice if choice >= 0 else w.dialog._choices.size() - 1
-			w.dialog.choose(pick)
-		else:
-			w.dialog.advance()
+		w.dialog.advance()
 		await _frames(2)
 		guard += 1
 
 
-func _talk(npc_id: String, choice := -1) -> bool:
+func _talk(npc_id: String) -> bool:
 	var w := _world()
 	if not w.smoke_talk(npc_id):
 		_fail("npc not found: %s in %s" % [npc_id, w.room_id])
 		return false
 	await _frames(2)
-	await _drain_dialog(choice)
+	await _drain_dialog()
 	await _frames(2)
 	return true
 
@@ -110,86 +103,14 @@ func _grab(item_id: String) -> bool:
 	return true
 
 
-func _test_profiles() -> void:
-	## Accounts must keep each explorer's progress fully separate.
-	for p in Game.profile_list():
-		Game.delete_profile(p["id"])
-	if not _check(Game.profile_count() == 0, "profiles start empty"):
-		return
-
-	var a := Game.create_profile("Ada", AvatarRig.random_look(), "1234")
-	if not _check(a != "" and Game.profile_id == a, "create profile A"):
-		return
-	Game.set_flag("test_a")
-	Game.give_item("lantern")
-	Game.award_medallion("ember")
-
-	var b := Game.create_profile("Bo", AvatarRig.random_look(), "")
-	if not _check(b != "" and b != a, "create profile B with a distinct id"):
-		return
-	if not _check(not Game.flag("test_a"), "B must not inherit A's flags"):
-		return
-	if not _check(not Game.has_item("lantern"), "B must not inherit A's items"):
-		return
-	if not _check(Game.medallions.is_empty(), "B must not inherit A's medallions"):
-		return
-	Game.set_flag("test_b")
-
-	# switching back restores A exactly
-	if not _check(Game.select_profile(a), "select A again"):
-		return
-	if not _check(Game.flag("test_a") and not Game.flag("test_b"), "A's flags survive a switch"):
-		return
-	if not _check(Game.has_item("lantern"), "A's items survive a switch"):
-		return
-	if not _check(Game.has_medallion("ember"), "A's medallion survives a switch"):
-		return
-	if not _check(Game.player_name == "Ada", "A's name survives a switch"):
-		return
-
-	# PINs
-	if not _check(Game.check_pin(a, "1234"), "correct PIN opens A"):
-		return
-	if not _check(not Game.check_pin(a, "9999"), "wrong PIN is rejected"):
-		return
-	if not _check(Game.check_pin(b, "anything"), "a profile with no PIN always opens"):
-		return
-
-	# a PIN must not be recoverable from the saved file
-	var pf := FileAccess.open(Game.PROFILES_PATH, FileAccess.READ)
-	var raw := pf.get_as_text() if pf else ""
-	if pf:
-		pf.close()
-	if not _check(not raw.contains("1234"), "PIN is not stored in the clear"):
-		return
-
-	# reload from disk: profiles must round-trip
-	Game.load_profiles()
-	if not _check(Game.profile_count() == 2, "both profiles reload from disk"):
-		return
-	if not _check(Game.select_profile(a) and Game.has_medallion("ember"), "progress reloads from disk"):
-		return
-
-	# delete only removes the one
-	Game.delete_profile(b)
-	if not _check(Game.profile_count() == 1, "delete removes exactly one profile"):
-		return
-	for p2 in Game.profile_list():
-		Game.delete_profile(p2["id"])
-	print("SMOKE: profiles ok")
-
-
 func _run_smoke() -> void:
 	print("SMOKE: start")
 	Game.reset_new_game()
 	Game.avatar = AvatarRig.random_look()
 	Game.player_name = "Test Pilot"
 
-	# ---- profiles / accounts ----
-	await _test_profiles()
-
 	# sanity: all screens instantiate
-	for s in ["title", "creator", "map", "profiles"]:
+	for s in ["title", "creator", "map"]:
 		switch_screen(s)
 		await _frames(3)
 	print("SMOKE: screens ok")
@@ -257,39 +178,6 @@ func _run_smoke() -> void:
 	await _talk("harbormaster")
 	if not _check(Game.flag("met_harbormaster"), "met_harbormaster flag"):
 		return
-
-	# regression: walking off the dock into the water must not strand you
-	# under the level on the invisible safety floor
-	var dock_h: float = w.room.get("size", Vector2(2400, 720)).y
-	w.player.global_position = Vector2(400, 540)  # on the wooden dock
-	for i in range(10):
-		await get_tree().physics_frame
-	# drop straight into the void below the level — the exact state that used
-	# to strand you on the invisible safety floor under the camera limit
-	w.player.global_position = Vector2(400, dock_h + 200.0)
-	w.player.velocity = Vector2(0, 400)
-	for i in range(40):
-		await get_tree().physics_frame
-	if not _check(w.player.global_position.y < dock_h + 40.0,
-			"a fall below the level must return you to solid ground (y=%.0f)" % w.player.global_position.y):
-		return
-	if not _check(w.player.is_on_floor(), "after a fall you should be standing again"):
-		return
-	# and the same via actually walking off the dock's left end into the water
-	w.player.global_position = Vector2(400, 540)
-	for i in range(10):
-		await get_tree().physics_frame
-	w.player.begin_hold(Vector2(-800, 540))
-	for i in range(150):
-		await get_tree().physics_frame
-	w.player.end_hold()
-	for i in range(40):
-		await get_tree().physics_frame
-	if not _check(w.player.global_position.y < dock_h + 40.0,
-			"walking off the dock must not strand you (y=%.0f)" % w.player.global_position.y):
-		return
-	w.build_room("dock", "default")
-	await _frames(3)
 
 	await _travel("under_dock")
 	# regression: swimming into the left wall must NOT trigger the Surface exit
@@ -388,93 +276,18 @@ func _run_smoke() -> void:
 		return
 	print("SMOKE: frost complete")
 
-	var flags_snapshot := Game.flags.duplicate()
-	var meds_snapshot := Game.medallions.duplicate()
-
-	# ---- Harbor Flats (both endings) ----
-	for ending in ["smokes", "gum"]:
-		Game.reset_new_game()
-		switch_screen("world", {"island": "harbor"})
-		await _frames(5)
-		var hw := _world()
-		if not _check(hw.room_id == "porch", "harbor starts on the porch"):
-			return
-		await _talk("nathan")
-		if not _check(Game.flag("met_nathan"), "met_nathan flag"):
-			return
-		await _travel("main")
-		await _talk("rosie")
-		if not _check(not Game.has_item("smokes"), "Rosie must not sell without money or stock"):
-			return
-		# earn the money: dive for Gus's crate
-		await _travel("docks")
-		await _talk("gus")
-		await _travel("harbor")
-		await _grab("wet_crate")
-		await _travel("docks")
-		await _talk("gus")
-		if not _check(Game.has_item("coins"), "Gus pays for the crate"):
-			return
-		if not _check(Game.flag("crate_delivered"), "crate_delivered flag"):
-			return
-		# rooftop side-quest via the alley
-		await _travel("main")
-		await _travel("alley")
-		await _talk("tam")
-		await _travel("rooftops")
-		await _grab("soggy_pack")
-		await _grab("lucky_ticket")
-		await _travel("alley")
-
-		if ending == "smokes":
-			await _travel("main")
-			await _talk("rosie")
-			if not _check(Game.has_item("smokes"), "Rosie sells once paid and restocked"):
-				return
-			if not _check(not Game.has_item("coins"), "coins are spent"):
-				return
-			await _travel("porch")
-		else:
-			await _talk("tam", 0)  # pick "Buy the gum"
-			if not _check(Game.has_item("gum"), "Tam trades gum for the same coins"):
-				return
-			if not _check(not Game.has_item("coins"), "coins are spent on gum"):
-				return
-			await _travel("main")
-			await _travel("porch")
-
-		await _talk("nathan")
-		if not _check(Game.flag("harbor_complete"), "harbor_complete via " + ending):
-			return
-		if not _check(Game.has_medallion("harbor"), "harbor medallion via " + ending):
-			return
-		var want: String = "ending_" + str(ending)
-		if not _check(Game.flag(want), "correct ending flag: " + want):
-			return
-		print("SMOKE: harbor complete (%s ending)" % ending)
-
-	# ---- save/resume roundtrip through a real profile ----
-	var pid := Game.create_profile("Roundtrip", Game.default_avatar(), "")
-	Game.flags = flags_snapshot.duplicate()
-	Game.medallions = meds_snapshot.duplicate()
-	Game.inventory = ["lantern"]
-	Game.current_island = "harbor"
-	Game.current_room = "main"
+	# ---- save/load roundtrip ----
 	Game.save()
-
-	Game.load_profiles()  # forget everything in memory, reload from disk
-	if not _check(Game.select_profile(pid), "profile reloads after save"):
+	var flags_before := Game.flags.duplicate()
+	var meds_before := Game.medallions.duplicate()
+	Game.reset_new_game()
+	if not _check(Game.load_save(), "save loads back"):
 		return
-	if not _check(Game.medallions == meds_snapshot, "medallions roundtrip"):
+	if not _check(Game.medallions == meds_before, "medallions roundtrip"):
 		return
-	if not _check(Game.has_item("lantern"), "inventory roundtrip"):
-		return
-	if not _check(Game.can_resume() and Game.current_room == "main", "resume point roundtrip"):
-		return
-	for k in flags_snapshot:
-		if not _check(Game.flags.get(k) == flags_snapshot[k], "flag roundtrip: " + str(k)):
+	for k in flags_before:
+		if not _check(Game.flags.get(k) == flags_before[k], "flag roundtrip: " + str(k)):
 			return
-	Game.delete_profile(pid)
 	print("SMOKE OK")
 	get_tree().quit(0)
 
@@ -532,19 +345,8 @@ func _run_shots(dir: String) -> void:
 	await _pose_sheet(dir)
 	Game.reset_new_game()
 	Game.player_name = "Brave Falcon"
-	# a couple of throwaway profiles so the account screen has cards to show
-	var demo_ids := []
-	if Game.profile_count() == 0:
-		var d1 := Game.create_profile("Brave Falcon", {"skin": 1, "hair_style": 2, "hair_color": 3, "shirt": 4, "pants": 7}, "1234")
-		Game.award_medallion("ember")
-		Game.award_medallion("frost")
-		var d2 := Game.create_profile("Sunny Otter", {"skin": 4, "hair_style": 5, "hair_color": 0, "shirt": 8, "pants": 5}, "")
-		Game.award_medallion("harbor")
-		demo_ids = [d1, d2]
-
 	var targets := [
 		["title", {}],
-		["profiles", {}],
 		["creator", {}],
 		["map", {}],
 		["world_ember_dock", {"island": "ember", "room": "dock"}],
@@ -555,11 +357,6 @@ func _run_shots(dir: String) -> void:
 		["world_frost_village", {"island": "frost", "room": "village"}],
 		["world_frost_slopes", {"island": "frost", "room": "slopes"}],
 		["world_frost_summit", {"island": "frost", "room": "summit"}],
-		["world_harbor_porch", {"island": "harbor", "room": "porch"}],
-		["world_harbor_main", {"island": "harbor", "room": "main"}],
-		["world_harbor_docks", {"island": "harbor", "room": "docks"}],
-		["world_harbor_alley", {"island": "harbor", "room": "alley"}],
-		["world_harbor_rooftops", {"island": "harbor", "room": "rooftops"}],
 	]
 	for t in targets:
 		var tag: String = t[0]
@@ -573,6 +370,4 @@ func _run_shots(dir: String) -> void:
 		var img := get_viewport().get_texture().get_image()
 		img.save_png(dir.path_join(tag + ".png"))
 		print("shot: " + tag)
-	for did in demo_ids:
-		Game.delete_profile(did)
 	get_tree().quit(0)

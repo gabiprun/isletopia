@@ -21,8 +21,6 @@ var _items := []
 var _doors := []
 var _pending := {}  # {"kind": "npc"/"door", "node": Node}
 var _edge_cooldown := 0.0
-var _last_safe := Vector2.INF  # last spot we were safely standing
-var _safe_timer := 0.0
 
 
 static func cond_ok(cond: Dictionary) -> bool:
@@ -178,8 +176,6 @@ func build_room(id: String, spawn_key := "default", keep_pos := Vector2.INF) -> 
 	player.clear_target()
 	_edge_cooldown = 0.5
 	_pressing = false
-	_last_safe = Vector2.INF
-	_safe_timer = 0.0
 	player.swim_mode = room.get("swim", false)
 	camera.reset_smoothing()
 
@@ -485,8 +481,6 @@ func _on_player_arrived() -> void:
 
 func _physics_process(delta: float) -> void:
 	_edge_cooldown = maxf(_edge_cooldown - delta, 0.0)
-	_track_safe_ground(delta)
-	_check_fell_out()
 	_check_edge_travel()
 	_check_pending(false)
 	# item pickup by proximity
@@ -496,39 +490,6 @@ func _physics_process(delta: float) -> void:
 		if player.global_position.distance_to(item.global_position + Vector2(0, 40)) < 62.0 \
 				or player.global_position.distance_to(item.global_position) < 62.0:
 			_pick_item(item)
-
-
-func _track_safe_ground(delta: float) -> void:
-	## Remember where we were last standing, so a fall can put us back there.
-	if room.get("swim", false):
-		return
-	_safe_timer -= delta
-	if _safe_timer > 0.0:
-		return
-	if player.is_on_floor() and absf(player.velocity.y) < 40.0:
-		var size: Vector2 = room.get("size", Vector2(2400, 720))
-		if player.global_position.y < size.y + 20:
-			_last_safe = player.global_position
-			_safe_timer = 0.15
-
-
-func _check_fell_out() -> void:
-	## Falling off the level used to drop you onto the invisible safety floor,
-	## below the camera's limit — visible to nobody and impossible to escape.
-	if room.get("swim", false):
-		return
-	var size: Vector2 = room.get("size", Vector2(2400, 720))
-	if player.global_position.y < size.y + 40.0:
-		return
-	var spawns: Dictionary = room.get("spawns", {})
-	var back: Vector2 = _last_safe
-	if back == Vector2.INF:
-		back = spawns.get("default", Vector2(200, size.y - 100))
-	player.velocity = Vector2.ZERO
-	player.clear_target()
-	player.global_position = back
-	camera.reset_smoothing()
-	Game.sfx("splash")
 
 
 func _check_edge_travel() -> void:
@@ -606,8 +567,7 @@ func _talk(npc: NPC) -> void:
 	player.clear_target()
 	player.input_locked = true
 	var entry := npc.pick_entry()
-	dialog.start(npc, npc.npc_name, entry.get("lines", ["..."]),
-		entry.get("actions", []), entry.get("choices", []))
+	dialog.start(npc, npc.npc_name, entry.get("lines", ["..."]), entry.get("actions", []))
 
 
 func _on_dialog_finished(actions: Array) -> void:
@@ -705,8 +665,6 @@ class BGDrawer:
 		"underwater": {"top": Color("#1f6f9f"), "bottom": Color("#0c3a58")},
 		"snow": {"top": Color("#a8cfe8"), "bottom": Color("#e8f2f8")},
 		"summit": {"top": Color("#6888b8"), "bottom": Color("#c8d8ea")},
-		"dusk": {"top": Color("#3b3a6b"), "bottom": Color("#e8895a")},
-		"alley": {"top": Color("#6a7a8a"), "bottom": Color("#b0b8bc")},
 	}
 
 	func _ready() -> void:
@@ -766,46 +724,6 @@ class BGDrawer:
 			"snow":
 				_mountains(w, h, Color("#c8d8e8"), Color("#eef4f8"))
 				_clouds(rng, w, 3)
-			"dusk":
-				# low sun over a rooftop skyline
-				draw_circle(Vector2(w * 0.78, h - 210), 70, Color("#ffc26b"))
-				draw_circle(Vector2(w * 0.78, h - 210), 96, Color(1, 0.75, 0.42, 0.22))
-				for i in range(int(w / 210.0) + 2):
-					var bx := i * 210.0 - 80.0
-					var bh := 150.0 + rng.randf_range(0, 190.0)
-					draw_rect(Rect2(bx, h - bh, 170, bh), Color("#2f3350"))
-					for wy in range(int(bh / 60.0)):
-						for wx2 in range(3):
-							if rng.randf() < 0.55:
-								draw_rect(
-									Rect2(bx + 22 + wx2 * 48, h - bh + 26 + wy * 60, 22, 26),
-									Color("#ffd98a")
-								)
-			"alley":
-				# brick back wall running the length of the alley
-				var wall_top := h - 620.0
-				var brick := Color("#6f6259")
-				var mortar := Color("#5d5149")
-				draw_rect(Rect2(-400, wall_top, w + 800, h - wall_top + 160), brick)
-				var courses := int((h - wall_top + 160) / 40.0)
-				for by in range(courses):
-					var oy := wall_top + by * 40.0
-					draw_line(Vector2(-400, oy), Vector2(w + 400, oy), mortar, 2.0)
-					var off := 0.0 if by % 2 == 0 else 46.0
-					for bx in range(int((w + 800) / 92.0)):
-						var ox := -400.0 + off + bx * 92.0
-						draw_line(Vector2(ox, oy), Vector2(ox, oy + 40), mortar, 2.0)
-				# barred windows and a downpipe to break up the wall
-				for i in range(int(w / 620.0) + 1):
-					var wx := 220.0 + i * 620.0
-					draw_rect(Rect2(wx, wall_top + 120, 92, 110), Color("#3c4650"))
-					draw_rect(Rect2(wx, wall_top + 120, 92, 110), mortar.darkened(0.2), false, 3.0)
-					for b in range(3):
-						draw_line(
-							Vector2(wx + 22 + b * 24, wall_top + 120),
-							Vector2(wx + 22 + b * 24, wall_top + 230), Color("#8d949a"), 3.0
-						)
-					draw_rect(Rect2(wx + 300, wall_top, 16, h - wall_top), Color("#7b7169"))
 			"summit":
 				_mountains(w, h, Color("#48608a"), Color("#dce8f2"))
 				# aurora
