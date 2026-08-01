@@ -7,6 +7,11 @@ one codebase targeting **Web, Android, iOS**. All art is code-drawn vector
 
 ## Play
 
+- **Accounts**: every player on a device gets their own explorer profile with
+  isolated progress, an optional 4-digit PIN, and its own resume point. Up to 8.
+  Storage is device-local (`user://isletopia_profiles.json`, which is IndexedDB
+  on web) — there is no server, so progress does not follow you to another
+  device. PINs are stored salted+hashed and keep siblings out, nothing more.
 - Customizable big-head avatar (skin, hair, colors) + generated explorer names
 - Blimp map to travel between islands; earn a **medallion** per completed quest
 - **Ember Isle** (6 rooms): the lighthouse went dark — find 3 lens shards
@@ -14,6 +19,11 @@ one codebase targeting **Web, Android, iOS**. All art is code-drawn vector
   starfish trade at the market)
 - **Frost Peak** (3 rooms): the yeti borrowed the Festival Bell — icy one-way
   platforms, a yarn fetch, and a hand-knitted giant hat
+- **Harbor Flats** (6 rooms): Nathan lost his smokes and is broke until Friday.
+  Rosie won't sell without money *or* stock, so you dive the harbour to recover
+  her delivery for Gus, earn a day's pay, and climb the rooftops after the gull
+  that started it. **Two endings** — buy the pack from Rosie, or take Tam's
+  offer of gum instead. Both finish the island; Nathan reacts differently.
 ### Controls
 
 | Input | Action |
@@ -64,7 +74,8 @@ wasm compresses to ~10 MB.
 
 | File | What |
 |---|---|
-| `scripts/game_state.gd` | autoload: flags, inventory, medallions, save/load, sfx |
+| `scripts/game_state.gd` | autoload: profiles/accounts, flags, inventory, medallions, save, sfx |
+| `scripts/profile_screen.gd` | "Who's playing?" — pick / create / delete an account |
 | `scripts/main.gd` | screen switching + `--smoke` / `--shot` harnesses |
 | `scripts/world.gd` | room engine: platforms, props, doors, dark rooms, taps |
 | `scripts/avatar_rig.gd` | code-drawn character (7 hair styles, walk/swim/talk anims) |

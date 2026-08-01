@@ -10,12 +10,15 @@ var _speaker: Node2D = null
 var _speaker_rig: AvatarRig = null
 var _lines := []
 var _actions := []
+var _choices := []
+var _choice_shown := false
 var _line_idx := 0
 var _chars := 0.0
 var _panel: PanelContainer
 var _label: Label
 var _name_label: Label
 var _hint: Label
+var _choice_box: VBoxContainer
 
 
 func _ready() -> void:
@@ -40,6 +43,11 @@ func _ready() -> void:
 	_label.custom_minimum_size = Vector2(360, 0)
 	vb.add_child(_label)
 
+	_choice_box = VBoxContainer.new()
+	_choice_box.add_theme_constant_override("separation", 6)
+	_choice_box.visible = false
+	vb.add_child(_choice_box)
+
 	_hint = Label.new()
 	_hint.text = "tap to continue ▸"
 	_hint.add_theme_font_size_override("font_size", 13)
@@ -48,7 +56,8 @@ func _ready() -> void:
 	vb.add_child(_hint)
 
 
-func start(speaker: Node2D, speaker_name: String, lines: Array, actions: Array = []) -> void:
+func start(speaker: Node2D, speaker_name: String, lines: Array, actions: Array = [],
+		choices: Array = []) -> void:
 	_speaker = speaker
 	_speaker_rig = null
 	if speaker is NPC:
@@ -57,6 +66,9 @@ func start(speaker: Node2D, speaker_name: String, lines: Array, actions: Array =
 		_speaker_rig = speaker.rig
 	_lines = lines
 	_actions = actions
+	_choices = choices
+	_choice_shown = false
+	_clear_choice_buttons()
 	_line_idx = 0
 	_chars = 0.0
 	_name_label.text = speaker_name
@@ -68,8 +80,8 @@ func start(speaker: Node2D, speaker_name: String, lines: Array, actions: Array =
 
 
 func advance() -> void:
-	if not active:
-		return
+	if not active or _choice_shown:
+		return  # a choice is on screen; the player has to pick one
 	var full := str(_lines[_line_idx])
 	if _chars < full.length():
 		_chars = full.length()  # reveal all first
@@ -77,13 +89,62 @@ func advance() -> void:
 	_line_idx += 1
 	_chars = 0.0
 	if _line_idx >= _lines.size():
-		_close()
+		if not _choices.is_empty():
+			_show_choices()
+		else:
+			_close()
 	else:
 		Game.sfx("talk")
 
 
+func _clear_choice_buttons() -> void:
+	if not _choice_box:
+		return
+	for c in _choice_box.get_children():
+		c.queue_free()
+	_choice_box.visible = false
+
+
+func _show_choices() -> void:
+	_choice_shown = true
+	_hint.visible = false
+	_choice_box.visible = true
+	for i in _choices.size():
+		var ch: Dictionary = _choices[i]
+		var b := IconLib.make_button(str(ch.get("label", "...")), 17, Color("#2e8bc0"))
+		var idx := i
+		b.pressed.connect(func(): choose(idx))
+		_choice_box.add_child(b)
+
+
+func choose(idx: int) -> void:
+	## Also used by the smoke harness to pick a branch headlessly.
+	if not _choice_shown or idx < 0 or idx >= _choices.size():
+		return
+	var ch: Dictionary = _choices[idx]
+	_choice_shown = false
+	_choices = []
+	_clear_choice_buttons()
+	_actions = ch.get("actions", [])
+	var reply: Array = ch.get("lines", [])
+	Game.sfx("click")
+	if reply.is_empty():
+		_close()
+		return
+	_lines = reply
+	_line_idx = 0
+	_chars = 0.0
+
+
+func has_choices() -> bool:
+	return _choice_shown
+
+
 func _close() -> void:
 	active = false
+	_choice_shown = false
+	_choices = []
+	_clear_choice_buttons()
 	_panel.visible = false
 	if _speaker_rig:
 		_speaker_rig.talking = false
@@ -97,10 +158,11 @@ func _process(delta: float) -> void:
 		if active:
 			_close()
 		return
-	var full := str(_lines[_line_idx])
-	_chars = minf(_chars + delta * 55.0, full.length())
-	_label.text = full.substr(0, int(_chars))
-	_hint.visible = _chars >= full.length()
+	if not _choice_shown:
+		var full := str(_lines[_line_idx])
+		_chars = minf(_chars + delta * 55.0, full.length())
+		_label.text = full.substr(0, int(_chars))
+		_hint.visible = _chars >= full.length()
 
 	# pin above speaker's head in screen coords
 	var head_y := -150.0

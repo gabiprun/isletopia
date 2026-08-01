@@ -62,6 +62,34 @@ static func draw_icon(ci: CanvasItem, type: String, pos: Vector2, s: float = 32.
 			ci.draw_polygon(pts, cols)
 			ci.draw_circle(pos + Vector2(0, h * 0.55), h * 0.18, col.darkened(0.35))
 			ci.draw_rect(Rect2(pos.x - h * 0.12, pos.y - h * 1.05, h * 0.24, h * 0.25), col.darkened(0.3))
+		"coins":
+			for off in [Vector2(-h * 0.35, h * 0.25), Vector2(h * 0.35, h * 0.25), Vector2(0, -h * 0.1)]:
+				ci.draw_circle(pos + off, h * 0.42, Color("#d8a12c"))
+				ci.draw_circle(pos + off, h * 0.32, Color("#e8c930"))
+				ci.draw_arc(pos + off, h * 0.42, 0, TAU, 16, Color("#b07d1e"), 1.5)
+		"crate":
+			ci.draw_rect(Rect2(pos.x - h * 0.8, pos.y - h * 0.7, h * 1.6, h * 1.5), Color("#a8743d"))
+			ci.draw_rect(Rect2(pos.x - h * 0.8, pos.y - h * 0.7, h * 1.6, h * 1.5), Color("#6e4522"), false, 3.0)
+			ci.draw_line(pos + Vector2(-h * 0.8, -h * 0.7), pos + Vector2(h * 0.8, h * 0.8), Color("#6e4522"), 3.0)
+			ci.draw_line(pos + Vector2(h * 0.8, -h * 0.7), pos + Vector2(-h * 0.8, h * 0.8), Color("#6e4522"), 3.0)
+		"pack":
+			ci.draw_rect(Rect2(pos.x - h * 0.5, pos.y - h * 0.8, h, h * 1.6), Color("#e8e4da"))
+			ci.draw_rect(Rect2(pos.x - h * 0.5, pos.y - h * 0.8, h, h * 1.6), Color("#8a9198"), false, 2.5)
+			ci.draw_rect(Rect2(pos.x - h * 0.5, pos.y - h * 0.8, h, h * 0.45), Color("#c0504a"))
+			ci.draw_line(pos + Vector2(-h * 0.3, h * 0.1), pos + Vector2(h * 0.3, h * 0.1), Color("#b8bcc2"), 2.0)
+			ci.draw_line(pos + Vector2(-h * 0.3, h * 0.45), pos + Vector2(h * 0.3, h * 0.45), Color("#b8bcc2"), 2.0)
+		"gum":
+			ci.draw_rect(Rect2(pos.x - h * 0.42, pos.y - h * 0.8, h * 0.84, h * 1.6), Color("#68d0c8"))
+			ci.draw_rect(Rect2(pos.x - h * 0.42, pos.y - h * 0.8, h * 0.84, h * 1.6), Color("#2e8b86"), false, 2.5)
+			ci.draw_rect(Rect2(pos.x - h * 0.42, pos.y - h * 0.2, h * 0.84, h * 0.35), Color("#f4f1e8"))
+			ci.draw_circle(pos + Vector2(0, -h * 0.45), h * 0.16, Color("#f4f1e8"))
+		"ticket":
+			ci.draw_rect(Rect2(pos.x - h * 0.9, pos.y - h * 0.55, h * 1.8, h * 1.1), Color("#f4e8b0"))
+			ci.draw_rect(Rect2(pos.x - h * 0.9, pos.y - h * 0.55, h * 1.8, h * 1.1), Color("#c9a83a"), false, 2.5)
+			for i in range(3):
+				var yy := pos.y - h * 0.25 + i * h * 0.3
+				ci.draw_line(Vector2(pos.x - h * 0.6, yy), Vector2(pos.x + h * 0.35, yy), Color("#8a7a3a"), 2.0)
+			ci.draw_circle(pos + Vector2(h * 0.6, 0), h * 0.2, Color("#d9483b"))
 		"medallion":
 			ci.draw_circle(pos, h * 0.9, Color("#d8a12c"))
 			ci.draw_circle(pos, h * 0.72, Color("#e8c930"))

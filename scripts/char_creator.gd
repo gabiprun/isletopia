@@ -77,6 +77,21 @@ func _ready() -> void:
 	)
 	vb.add_child(name_btn)
 
+	var pin_label := Label.new()
+	pin_label.text = "PIN (optional)"
+	pin_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pin_label.add_theme_font_size_override("font_size", 15)
+	pin_label.add_theme_color_override("font_color", Color("#aab4bd"))
+	vb.add_child(pin_label)
+
+	_pin_entry = LineEdit.new()
+	_pin_entry.secret = true
+	_pin_entry.max_length = 4
+	_pin_entry.placeholder_text = "4 digits"
+	_pin_entry.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_pin_entry.add_theme_font_size_override("font_size", 20)
+	vb.add_child(_pin_entry)
+
 	var go := IconLib.make_button("Set Sail!", 24, Color("#4ca64c"))
 	go.pressed.connect(_on_start)
 	vb.add_child(go)
@@ -86,6 +101,7 @@ func _ready() -> void:
 
 
 var _panel_ref: PanelContainer
+var _pin_entry: LineEdit
 
 
 func _layout() -> void:
@@ -137,7 +153,7 @@ func _random_name() -> String:
 
 func _on_start() -> void:
 	Game.sfx("click")
-	Game.avatar = _cfg.duplicate()
-	Game.player_name = _player_name
-	Game.save()
+	var pin := _pin_entry.text if _pin_entry else ""
+	if Game.create_profile(_player_name, _cfg, pin) == "":
+		return  # profile limit reached
 	Game.goto_screen("map")

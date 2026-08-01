@@ -63,6 +63,14 @@ func _draw() -> void:
 			_stalactite()
 		"chest":
 			_chest()
+		"dumpster":
+			_dumpster()
+		"ladder":
+			_ladder()
+		"nest":
+			_nest()
+		"awning":
+			_awning()
 
 
 func _house() -> void:
@@ -136,6 +144,12 @@ func solid_shapes() -> Array:
 			return [{"rect": Rect2(-56, -hh - 14, 112, 14), "one_way": true}]
 		"bellstand":
 			return [{"rect": Rect2(-80, -196, 160, 12), "one_way": true}]
+		"dumpster":
+			var dw: float = p.get("w", 170.0)
+			return [{"rect": Rect2(-dw / 2 - 8, -96, dw + 16, 12), "one_way": true}]
+		"awning":
+			var aw: float = p.get("w", 260.0)
+			return [{"rect": Rect2(-aw / 2, -8, aw, 12), "one_way": true}]
 	return []
 
 
@@ -422,6 +436,69 @@ func _chest() -> void:
 			lid.append(Vector2(cos(ang) * 40, -36 + sin(ang) * 22))
 		draw_polygon(lid, _solid(lid.size(), Color("#6e4522")))
 		draw_rect(Rect2(-6, -44, 12, 14), Color("#d8a12c"))
+
+
+func _dumpster() -> void:
+	var w: float = p.get("w", 170.0)
+	var col: Color = p.get("color", Color("#3f6b4a"))
+	draw_rect(Rect2(-w / 2, -86, w, 86), col)
+	draw_rect(Rect2(-w / 2, -86, w, 86), col.darkened(0.3), false, 3.0)
+	# slanted lid
+	draw_polygon(
+		PackedVector2Array([
+			Vector2(-w / 2 - 8, -86), Vector2(w / 2 + 8, -96),
+			Vector2(w / 2 + 8, -84), Vector2(-w / 2 - 8, -74),
+		]),
+		_solid(4, col.lightened(0.12))
+	)
+	# little wheels
+	draw_circle(Vector2(-w * 0.3, 2), 8, Color("#2b2b2b"))
+	draw_circle(Vector2(w * 0.3, 2), 8, Color("#2b2b2b"))
+	# overflowing bag
+	draw_circle(Vector2(w * 0.18, -104), 16, Color("#4a4f56"))
+	draw_circle(Vector2(w * 0.02, -100), 12, Color("#4a4f56"))
+
+
+func _ladder() -> void:
+	var h: float = p.get("h", 260.0)
+	var col := Color("#8a9198")
+	draw_rect(Rect2(-24, -h, 7, h), col)
+	draw_rect(Rect2(17, -h, 7, h), col)
+	var rungs := int(h / 34.0)
+	for i in range(rungs):
+		var y := -h + 20.0 + i * 34.0
+		draw_rect(Rect2(-24, y, 48, 5), col.lightened(0.15))
+
+
+func _nest() -> void:
+	var col := Color("#8a6a42")
+	draw_arc(Vector2(0, -6), 34, PI, TAU, 18, col, 12.0)
+	for i in range(7):
+		var a := PI + i * PI / 6.0
+		draw_line(
+			Vector2(cos(a), sin(a)) * 30 + Vector2(0, -6),
+			Vector2(cos(a), sin(a)) * 42 + Vector2(0, -10),
+			col.darkened(0.2), 3.0
+		)
+	draw_arc(Vector2(0, -4), 22, PI, TAU, 14, col.lightened(0.15), 8.0)
+
+
+func _awning() -> void:
+	var w: float = p.get("w", 260.0)
+	var c1: Color = p.get("c1", Color("#25537a"))
+	var c2: Color = p.get("c2", Color("#f4f1e8"))
+	var n := 7
+	var seg := w / n
+	for i in range(n):
+		var col := c1 if i % 2 == 0 else c2
+		draw_polygon(
+			PackedVector2Array([
+				Vector2(-w / 2 + i * seg, 0), Vector2(-w / 2 + (i + 1) * seg, 0),
+				Vector2(-w / 2 + (i + 1) * seg, 26), Vector2(-w / 2 + i * seg, 26),
+			]),
+			_solid(4, col)
+		)
+	draw_rect(Rect2(-w / 2, -6, w, 8), Color("#5a6572"))
 
 
 func _solid(n: int, col: Color) -> PackedColorArray:

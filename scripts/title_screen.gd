@@ -42,31 +42,41 @@ func _ready() -> void:
 	gap.custom_minimum_size = Vector2(0, 16)
 	center.add_child(gap)
 
-	var new_btn := IconLib.make_button("New Adventure", 26, Color("#4ca64c"))
-	new_btn.custom_minimum_size = Vector2(300, 0)
-	new_btn.pressed.connect(_on_new)
-	center.add_child(new_btn)
+	var has_profiles := Game.profile_count() > 0
 
-	var cont_btn := IconLib.make_button("Continue", 26, Color("#2e8bc0"))
-	cont_btn.custom_minimum_size = Vector2(300, 0)
-	cont_btn.disabled = not Game.has_save()
-	cont_btn.pressed.connect(_on_continue)
-	center.add_child(cont_btn)
+	var play_btn := IconLib.make_button("Choose Explorer" if has_profiles else "New Adventure", 26, Color("#4ca64c"))
+	play_btn.custom_minimum_size = Vector2(320, 0)
+	play_btn.pressed.connect(_on_play)
+	center.add_child(play_btn)
+
+	if has_profiles:
+		var new_btn := IconLib.make_button("New Explorer", 22, Color("#2e8bc0"))
+		new_btn.custom_minimum_size = Vector2(320, 0)
+		new_btn.disabled = not Game.can_add_profile()
+		new_btn.pressed.connect(func():
+			Game.sfx("click")
+			Game.reset_new_game()
+			Game.goto_screen("creator")
+		)
+		center.add_child(new_btn)
+
+	var note := Label.new()
+	note.text = "Everyone on this device gets their own saved progress."
+	note.add_theme_font_size_override("font_size", 14)
+	note.add_theme_color_override("font_color", Color("#eaf4fb"))
+	note.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.45))
+	note.add_theme_constant_override("outline_size", 5)
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	center.add_child(note)
 
 
-func _on_new() -> void:
+func _on_play() -> void:
 	Game.sfx("click")
-	Game.reset_new_game()
-	Game.goto_screen("creator")
-
-
-func _on_continue() -> void:
-	Game.sfx("click")
-	if Game.load_save():
-		if Game.current_island != "" and IslandRegistry.has_island(Game.current_island):
-			Game.goto_screen("world", {"island": Game.current_island, "room": Game.current_room})
-		else:
-			Game.goto_screen("map")
+	if Game.profile_count() > 0:
+		Game.goto_screen("profiles")
+	else:
+		Game.reset_new_game()
+		Game.goto_screen("creator")
 
 
 class SkyDrawer:
