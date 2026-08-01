@@ -73,7 +73,7 @@ func _drain_dialog(choice := -1) -> void:
 	var guard := 0
 	while w.dialog.active and guard < 200:
 		if w.dialog.has_choices():
-			var pick := choice if choice >= 0 else w.dialog._choices.size() - 1
+			var pick: int = choice if choice >= 0 else w.dialog._choices.size() - 1
 			w.dialog.choose(pick)
 		else:
 			w.dialog.advance()
