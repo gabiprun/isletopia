@@ -2,3 +2,5 @@
 build/
 *.jks
 *.keystore
+android/build/
+android/.build_version
