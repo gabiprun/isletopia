@@ -16,7 +16,7 @@ func setup(def: Dictionary) -> void:
 
 
 func _process(delta: float) -> void:
-	if type in ["beam", "torch", "wave", "bellstand", "banner"]:
+	if type in ["beam", "torch", "wave", "bellstand", "banner", "crucible"]:
 		_t += delta
 		queue_redraw()
 
@@ -71,6 +71,12 @@ func _draw() -> void:
 			_nest()
 		"awning":
 			_awning()
+		"atm":
+			_atm()
+		"crucible":
+			_crucible()
+		"bench":
+			_bench()
 
 
 func _house() -> void:
@@ -150,6 +156,10 @@ func solid_shapes() -> Array:
 		"awning":
 			var aw: float = p.get("w", 260.0)
 			return [{"rect": Rect2(-aw / 2, -8, aw, 12), "one_way": true}]
+		"atm":
+			return [{"rect": Rect2(-48, -172, 96, 12), "one_way": true}]
+		"bench":
+			return [{"rect": Rect2(-64, -52, 128, 10), "one_way": true}]
 	return []
 
 
@@ -499,6 +509,73 @@ func _awning() -> void:
 			_solid(4, col)
 		)
 	draw_rect(Rect2(-w / 2, -6, w, 8), Color("#5a6572"))
+
+
+func _atm() -> void:
+	## Bank machine kiosk, BMO-blue with a lit screen.
+	var blue := Color("#0075be")
+	var body := Color("#2b3540")
+	draw_rect(Rect2(-44, -160, 88, 160), body)
+	draw_rect(Rect2(-44, -160, 88, 160), body.darkened(0.35), false, 3.0)
+	# branded header
+	draw_rect(Rect2(-48, -172, 96, 34), blue)
+	draw_rect(Rect2(-48, -172, 96, 34), blue.darkened(0.3), false, 2.5)
+	var font := ThemeDB.fallback_font
+	draw_string(font, Vector2(-44, -146), "BMO", HORIZONTAL_ALIGNMENT_CENTER, 88, 20, Color.WHITE)
+	# screen with a $ prompt
+	draw_rect(Rect2(-32, -128, 64, 44), Color("#0c2a3a"))
+	draw_rect(Rect2(-32, -128, 64, 44), Color("#68d0c8"), false, 2.0)
+	draw_string(font, Vector2(-32, -96), "$", HORIZONTAL_ALIGNMENT_CENTER, 64, 24, Color("#68d0c8"))
+	# keypad
+	for r in range(3):
+		for c in range(3):
+			draw_rect(Rect2(-24 + c * 18, -70 + r * 14, 12, 9), Color("#8a9198"))
+	# card slot with a green blink
+	draw_rect(Rect2(-26, -22, 52, 7), Color("#111417"))
+	draw_circle(Vector2(34, -18), 3.5, Color("#4ca64c"))
+
+
+func _crucible() -> void:
+	## Burner stand, glowing crucible, and a tray of gold teeth. Villain decor.
+	var flick := 0.7 + sin(_t * 9.0) * 0.18 + sin(_t * 23.0) * 0.08
+	# tripod stand
+	draw_line(Vector2(-26, 0), Vector2(0, -52), Color("#3a4048"), 5.0)
+	draw_line(Vector2(26, 0), Vector2(0, -52), Color("#3a4048"), 5.0)
+	draw_line(Vector2(0, -8), Vector2(0, -52), Color("#3a4048"), 5.0)
+	# flame under the pot
+	var fh := 20.0 * flick
+	draw_polygon(PackedVector2Array([
+		Vector2(-10, -46), Vector2(10, -46), Vector2(0, -46 - fh),
+	]), _solid(3, Color("#ff9a3d", 0.9)))
+	draw_polygon(PackedVector2Array([
+		Vector2(-5, -46), Vector2(5, -46), Vector2(0, -46 - fh * 0.6),
+	]), _solid(3, Color("#ffe08a")))
+	# crucible pot with molten gold
+	draw_rect(Rect2(-22, -92, 44, 30), Color("#4a4f56"))
+	draw_polygon(PackedVector2Array([
+		Vector2(-22, -92), Vector2(22, -92), Vector2(16, -62), Vector2(-16, -62),
+	]), _solid(4, Color("#4a4f56")))
+	draw_rect(Rect2(-18, -92, 36, 7), Color("#ffb347", flick))
+	draw_circle(Vector2(0, -88), 26.0 * flick, Color(1, 0.7, 0.25, 0.16))
+	# tray of little gold teeth waiting their turn
+	draw_rect(Rect2(30, -14, 62, 14), Color("#5a6068"))
+	for i in range(4):
+		draw_circle(Vector2(40 + i * 14, -18), 5.0, Color("#e8c930"))
+		draw_arc(Vector2(40 + i * 14, -18), 5.0, 0, TAU, 10, Color("#b07d1e"), 1.5)
+
+
+func _bench() -> void:
+	var wood := Color("#8a5a2b")
+	# backrest slats
+	draw_rect(Rect2(-62, -96, 124, 9), wood)
+	draw_rect(Rect2(-62, -80, 124, 9), wood)
+	# seat
+	draw_rect(Rect2(-66, -52, 132, 10), wood.lightened(0.12))
+	draw_rect(Rect2(-66, -42, 132, 5), wood.darkened(0.2))
+	# cast-iron legs
+	for sx in [-52.0, 52.0]:
+		draw_rect(Rect2(sx - 4, -96, 8, 96), Color("#3a4048"))
+		draw_rect(Rect2(sx - 12, -6, 24, 6), Color("#3a4048"))
 
 
 func _solid(n: int, col: Color) -> PackedColorArray:

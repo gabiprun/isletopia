@@ -30,6 +30,18 @@ const ITEMS := {
 	"lucky_ticket": {"name": "Lottery Ticket", "desc": "Damp, but the numbers are still readable.", "icon": "ticket"},
 	"smokes": {"name": "Pack of Smokes", "desc": "What Nathan asked for. Rosie carded you twice.", "icon": "pack"},
 	"gum": {"name": "Pack of Gum", "desc": "Tam swears it worked for his brother.", "icon": "gum"},
+	# Royal Oak
+	"flour_sack": {"name": "Sack of Flour", "desc": "Earl's best, hauled down from the loft by hand.", "icon": "flour"},
+	"loaf_earl": {"name": "Loaf for Earl", "desc": "Marge's Friday loaf. Crust like armour.", "icon": "bread"},
+	"loaf_pia": {"name": "Loaf for Pia", "desc": "Picnic bread, still warm through the box.", "icon": "bread"},
+	"loaf_daniel": {"name": "Loaf for Dr. Daniel", "desc": "Sourdough, extra crusty. He has excellent teeth.", "icon": "bread"},
+	"tip_earl": {"name": "Earl's Bread Money", "desc": "Counted twice, still dusty with flour.", "icon": "coins"},
+	"tip_pia": {"name": "Pia's Bread Money", "desc": "She mixed up the coins. Twice.", "icon": "coins"},
+	"tip_daniel": {"name": "Daniel's Bread Money", "desc": "Paid in full, no receipt. Interesting.", "icon": "coins"},
+	"pay_coins": {"name": "Kable's Day's Pay", "desc": "A full day at the ovens. Marge rounded up.", "icon": "coins"},
+	"gold_tooth": {"name": "Gold Tooth", "desc": "Rolled out of the clinic's back window. Evidence, that is.", "icon": "gold_tooth"},
+	"denture": {"name": "New Denture", "desc": "Fitted and polished. Handle with both hands.", "icon": "denture"},
+	"old_denture": {"name": "Chewed Spare Denture", "desc": "Recovered from a very proud raccoon.", "icon": "denture"},
 }
 
 var main: Node = null

@@ -10,6 +10,11 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+
+# Gate 0: no "(2)" duplicate files anywhere (a stray "index 2.pck" or " 2.gd"
+# copy can shadow the real build / break the class cache).
+bash tools/check_no_dupes.sh
+
 PCK="build/web/index.pck"
 [ -f "$PCK" ] || { echo "No $PCK — run the Web export first."; exit 1; }
 

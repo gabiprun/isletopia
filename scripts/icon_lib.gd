@@ -109,6 +109,47 @@ static func draw_icon(ci: CanvasItem, type: String, pos: Vector2, s: float = 32.
 			ci.draw_line(pos + Vector2(h * 0.33, -h * 0.75), pos + Vector2(h * 0.33, h * 0.75), Color("#c9b98a"), 1.5)
 			ci.draw_circle(pos + Vector2(h * 0.1, -h * 0.1), h * 0.14, Color("#d9483b"))
 			ci.draw_line(pos + Vector2(-h * 0.6, h * 0.4), pos + Vector2(h * 0.1, -h * 0.1), Color("#5a7ea5"), 2.0)
+		"denture":
+			# horseshoe of pink gum with a row of white teeth
+			var gum_col := Color("#e8788a")
+			ci.draw_arc(pos + Vector2(0, h * 0.15), h * 0.75, PI * 0.05, PI * 0.95, 16, gum_col, h * 0.5)
+			for i in range(6):
+				var ang := PI * 0.12 + i * PI * 0.152
+				var tp := pos + Vector2(cos(ang), sin(ang) * 0.8) * h * 0.72 + Vector2(0, h * 0.05)
+				ci.draw_rect(Rect2(tp.x - h * 0.11, tp.y - h * 0.14, h * 0.22, h * 0.3), Color("#f8f6ee"))
+				ci.draw_rect(Rect2(tp.x - h * 0.11, tp.y - h * 0.14, h * 0.22, h * 0.3), Color("#c9c4b4"), false, 1.5)
+			ci.draw_circle(pos + Vector2(-h * 0.45, -h * 0.3), h * 0.08, Color(1, 1, 1, 0.7))
+		"bread":
+			var crust := Color("#c98a3d")
+			ci.draw_circle(pos + Vector2(0, h * 0.1), h * 0.55, crust)
+			ci.draw_rect(Rect2(pos.x - h * 0.85, pos.y - h * 0.15, h * 1.7, h * 0.75), crust)
+			ci.draw_arc(pos + Vector2(-h * 0.85, h * 0.22), h * 0.38, PI * 0.5, PI * 1.5, 10, crust, h * 0.35)
+			ci.draw_arc(pos + Vector2(h * 0.85, h * 0.22), h * 0.38, -PI * 0.5, PI * 0.5, 10, crust, h * 0.35)
+			for i in range(3):
+				var sx := pos.x - h * 0.45 + i * h * 0.45
+				ci.draw_line(Vector2(sx, pos.y - h * 0.32), Vector2(sx + h * 0.2, pos.y - h * 0.05), Color("#f4e0b0"), 3.0)
+		"flour":
+			var sack := Color("#e8e0cc")
+			ci.draw_rect(Rect2(pos.x - h * 0.65, pos.y - h * 0.55, h * 1.3, h * 1.35), sack)
+			ci.draw_rect(Rect2(pos.x - h * 0.65, pos.y - h * 0.55, h * 1.3, h * 1.35), Color("#a89a7c"), false, 2.5)
+			# tied-off neck
+			ci.draw_rect(Rect2(pos.x - h * 0.28, pos.y - h * 0.9, h * 0.56, h * 0.4), sack)
+			ci.draw_line(pos + Vector2(-h * 0.3, -h * 0.6), pos + Vector2(h * 0.3, -h * 0.6), Color("#8a5a2b"), 3.5)
+			ci.draw_rect(Rect2(pos.x - h * 0.4, pos.y - h * 0.15, h * 0.8, h * 0.5), Color("#c9b98a"))
+			ci.draw_circle(pos + Vector2(h * 0.5, -h * 0.75), h * 0.09, Color(1, 1, 1, 0.8))
+		"gold_tooth":
+			var gold := Color("#e8c930")
+			# crown
+			ci.draw_rect(Rect2(pos.x - h * 0.5, pos.y - h * 0.7, h, h * 0.75), gold)
+			ci.draw_arc(pos + Vector2(0, -h * 0.7), h * 0.5, PI, TAU, 12, gold, h * 0.3)
+			# two roots
+			for sx in [-h * 0.28, h * 0.28]:
+				ci.draw_polygon(PackedVector2Array([
+					pos + Vector2(sx - h * 0.16, h * 0.05), pos + Vector2(sx + h * 0.16, h * 0.05),
+					pos + Vector2(sx, h * 0.75),
+				]), PackedColorArray([gold, gold, gold]))
+			ci.draw_arc(pos + Vector2(0, -h * 0.7), h * 0.5, PI, TAU, 12, Color("#b07d1e"), 2.0)
+			ci.draw_line(pos + Vector2(-h * 0.3, -h * 0.55), pos + Vector2(-h * 0.1, -h * 0.75), Color(1, 1, 1, 0.85), 3.0)
 		"backpack":
 			ci.draw_rect(Rect2(pos.x - h * 0.75, pos.y - h * 0.7, h * 1.5, h * 1.5), Color("#8a5a2b"))
 			ci.draw_arc(pos + Vector2(0, -h * 0.7), h * 0.5, PI, TAU, 10, Color("#8a5a2b"), 5.0)

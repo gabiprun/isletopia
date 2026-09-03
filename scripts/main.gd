@@ -453,6 +453,105 @@ func _run_smoke() -> void:
 			return
 		print("SMOKE: harbor complete (%s ending)" % ending)
 
+	# ---- Royal Oak (both endings) ----
+	for ending in ["paid", "exposed"]:
+		Game.reset_new_game()
+		switch_screen("world", {"island": "royaloak"})
+		await _frames(5)
+		var rw := _world()
+		if not _check(rw.room_id == "plaza", "royal oak starts on the plaza"):
+			return
+		await _talk("kable_greet")
+		if not _check(Game.flag("met_kable"), "met_kable flag"):
+			return
+		await _travel("clinic")
+		await _talk("daniel")
+		if not _check(Game.flag("price_hiked"), "Daniel hikes the price"):
+			return
+		await _travel("plaza")
+		await _talk("kable_atm")
+		if not _check(Game.flag("kable_working"), "ATM declines, Kable goes back to work"):
+			return
+		# the bakery job: flour first
+		await _travel("bakery")
+		await _talk("marge")
+		if not _check(Game.flag("met_marge"), "met_marge flag"):
+			return
+		await _travel("mill")
+		await _talk("earl")
+		await _grab("flour_sack")
+		await _travel("bakery")
+		await _talk("marge")
+		if not _check(Game.has_item("loaf_daniel"), "Marge boxes the three orders"):
+			return
+		# deliveries: Earl, Pia (plus the raccoon's prize), Dr. Daniel
+		await _travel("mill")
+		await _talk("earl")
+		if not _check(Game.has_item("tip_earl"), "Earl pays for his loaf"):
+			return
+		await _travel("bakery")
+		await _travel("plaza")
+		await _travel("park")
+		await _talk("pia")
+		if not _check(Game.has_item("tip_pia"), "Pia pays for her loaf"):
+			return
+		if ending == "exposed":
+			await _grab("old_denture")
+		await _travel("plaza")
+		await _travel("clinic")
+		await _talk("daniel")
+		if not _check(Game.has_item("tip_daniel"), "Daniel pays for his sourdough"):
+			return
+		await _travel("plaza")
+		await _travel("bakery")
+		if ending == "exposed":
+			await _talk("kable_baking")
+			if not _check(Game.flag("found_spare"), "Kable takes the chewed spare back"):
+				return
+			if not _check(not Game.has_item("old_denture"), "spare denture is binned"):
+				return
+		await _talk("marge")
+		if not _check(Game.has_item("pay_coins"), "Marge pays the day's wages"):
+			return
+		if not _check(Game.flag("earned_pay"), "earned_pay flag"):
+			return
+		await _travel("plaza")
+
+		if ending == "exposed":
+			# the walk back: catch Daniel melting gold teeth in the back lane
+			await _travel("backlane")
+			await _talk("kable_lane")
+			if not _check(Game.flag("saw_melting"), "Kable spots the crucible"):
+				return
+			await _talk("daniel_melting")
+			await _grab("gold_tooth")
+			await _travel("plaza")
+			await _travel("clinic")
+			await _talk("daniel", 0)  # show him the gold tooth
+			if not _check(not Game.has_item("gold_tooth"), "evidence confiscated"):
+				return
+			if not _check(Game.has_item("pay_coins"), "exposed ending keeps the pay"):
+				return
+		else:
+			await _travel("clinic")
+			await _talk("daniel")
+			if not _check(not Game.has_item("pay_coins"), "paid ending spends the pay"):
+				return
+
+		if not _check(Game.has_item("denture"), "Daniel hands over the denture"):
+			return
+		if not _check(Game.flag("resolved"), "clinic standoff resolved"):
+			return
+		await _travel("plaza")
+		await _talk("kable_bench")
+		if not _check(Game.flag("royal_complete"), "royal_complete via " + ending):
+			return
+		if not _check(Game.has_medallion("royaloak"), "royal oak medallion via " + ending):
+			return
+		if not _check(Game.flag("ending_" + str(ending)), "correct ending flag: ending_" + str(ending)):
+			return
+		print("SMOKE: royal oak complete (%s ending)" % ending)
+
 	# ---- save/resume roundtrip through a real profile ----
 	var pid := Game.create_profile("Roundtrip", Game.default_avatar(), "")
 	Game.flags = flags_snapshot.duplicate()
@@ -560,16 +659,28 @@ func _run_shots(dir: String) -> void:
 		["world_harbor_docks", {"island": "harbor", "room": "docks"}],
 		["world_harbor_alley", {"island": "harbor", "room": "alley"}],
 		["world_harbor_rooftops", {"island": "harbor", "room": "rooftops"}],
+		["world_royal_plaza", {"island": "royaloak", "room": "plaza"}],
+		["world_royal_atm", {"island": "royaloak", "room": "plaza", "spawn": "from_backlane"}],
+		["world_royal_clinic", {"island": "royaloak", "room": "clinic"}],
+		["world_royal_bakery", {"island": "royaloak", "room": "bakery"}],
+		["world_royal_mill", {"island": "royaloak", "room": "mill"}],
+		["world_royal_park", {"island": "royaloak", "room": "park"}],
+		["world_royal_backlane", {"island": "royaloak", "room": "backlane"}],
 	]
 	for t in targets:
 		var tag: String = t[0]
 		var targs: Dictionary = t[1]
+		# the back-lane crucible scene only exists mid-quest
+		Game.flags["earned_pay"] = tag == "world_royal_backlane"
 		if tag.begins_with("world"):
 			switch_screen("world", targs)
 		else:
 			switch_screen(tag)
 		for i in range(40):
 			await get_tree().process_frame
+		# macOS stops presenting occluded windows, which would freeze every
+		# capture on one stale frame — force a real draw before reading pixels
+		RenderingServer.force_draw()
 		var img := get_viewport().get_texture().get_image()
 		img.save_png(dir.path_join(tag + ".png"))
 		print("shot: " + tag)

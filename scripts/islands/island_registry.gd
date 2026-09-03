@@ -4,12 +4,13 @@ class_name IslandRegistry
 const EmberIsle = preload("res://scripts/islands/ember_isle.gd")
 const FrostPeak = preload("res://scripts/islands/frost_peak.gd")
 const HarborFlats = preload("res://scripts/islands/harbor_flats.gd")
+const RoyalOak = preload("res://scripts/islands/royal_oak.gd")
 
 static var _cache := {}
 
 
 static func list_islands() -> Array:
-	return ["ember", "frost", "harbor"]
+	return ["ember", "frost", "harbor", "royaloak"]
 
 
 static func has_island(id: String) -> bool:
@@ -25,6 +26,8 @@ static func get_island(id: String) -> Dictionary:
 				_cache[id] = FrostPeak.data()
 			"harbor":
 				_cache[id] = HarborFlats.data()
+			"royaloak":
+				_cache[id] = RoyalOak.data()
 			_:
 				_cache[id] = EmberIsle.data()
 	return _cache[id]

@@ -24,6 +24,14 @@ one codebase targeting **Web, Android, iOS**. All art is code-drawn vector
   her delivery for Gus, earn a day's pay, and climb the rooftops after the gull
   that started it. **Two endings** — buy the pack from Rosie, or take Tam's
   offer of gum instead. Both finish the island; Nathan reacts differently.
+- **Royal Oak** (6 rooms): it's Mr. Kable's new-denture day, but young
+  Dr. Daniel invents a "lab fee" and sends him to the BMO ATM next door —
+  which says INSUFFICIENT FUNDS. Kable goes back to work at Grainy's Bakery:
+  climb the mill loft for flour, run three bread deliveries (one to Daniel
+  himself), earn the pay — then catch Daniel through the lab window melting
+  gold teeth stolen from his patients. **Two endings** — pay up, or show him
+  the gold tooth and watch the fees evaporate. Plus a raccoon with Kable's
+  chewed spare denture up the park oak.
 ### Controls
 
 | Input | Action |
