@@ -1,20 +1,20 @@
 # Isletopia — project status
 
-_Last reviewed: 2026-09-02._
+_Last reviewed: 2026-09-03._
 
 `README.md` is the design doc, controls reference and code map. This file answers a
 different question: **what is actually shipped, versus what only exists in this
 working copy.** Reconstructing that from `git log` / `git status` / `git show HEAD:`
 is what this file exists to save you.
 
-## Islands: 4 built, 3 shipped
+## Islands: 4 built, 4 committed, 3 shipped
 
-| Island       | Script                             | Built | In `origin/main` | In the Play release |
-| ------------ | ---------------------------------- | ----- | ---------------- | ------------------- |
-| Ember Isle   | `scripts/islands/ember_isle.gd`    | yes   | yes              | yes                 |
-| Frost Peak   | `scripts/islands/frost_peak.gd`    | yes   | yes              | yes                 |
-| Harbor Flats | `scripts/islands/harbor_flats.gd`  | yes   | yes              | yes                 |
-| Royal Oak    | `scripts/islands/royal_oak.gd`     | yes   | **no**           | **no**              |
+| Island       | Script                             | Built | In `main` | In the Play release |
+| ------------ | ---------------------------------- | ----- | --------- | ------------------- |
+| Ember Isle   | `scripts/islands/ember_isle.gd`    | yes   | yes       | yes                 |
+| Frost Peak   | `scripts/islands/frost_peak.gd`    | yes   | yes       | yes                 |
+| Harbor Flats | `scripts/islands/harbor_flats.gd`  | yes   | yes       | yes                 |
+| Royal Oak    | `scripts/islands/royal_oak.gd`     | yes   | yes       | **no**              |
 
 All four pass the headless suite end to end:
 
@@ -26,30 +26,31 @@ SMOKE: royal oak complete (paid ending) + (exposed ending)
 SMOKE OK
 ```
 
-### Royal Oak is uncommitted — treat the working tree as the only copy
+### Royal Oak is committed now — but not released
 
-`scripts/islands/royal_oak.gd` is **untracked**, and the five files that wire it in
-(`scripts/game_state.gd`, `scripts/icon_lib.gd`, `scripts/islands/island_registry.gd`,
-`scripts/main.gd`, `scripts/prop.gd`) plus `README.md` are **modified but unstaged**.
+`6a35b8e` *"Fix the duplicate-script class cache and add coverage"* (2026-09-03)
+committed the island: `scripts/islands/royal_oak.gd` (583 lines) and the five files
+that wire it in, plus the README update. The work-loss risk this section used to
+describe — the island existing only in one working copy, one `git checkout -- .`
+away from gone — **is closed.**
 
-Consequences, in order of how much they will hurt:
+What is still true is the release gap:
 
-- A `git checkout -- .`, `git stash drop`, or a fresh clone of `origin` **loses the
-  entire island.** There is no second copy anywhere.
-- `README.md` in the working tree already describes Royal Oak as if it ships. The
-  committed README (`git show HEAD:README.md`) does not mention it at all, so anyone
-  reading the repo on GitHub sees a three-island game.
-- The web build in `docs/` and the Play build are both pre-Royal-Oak.
+- The Play build (`1.0.1`, versionCode 2) and the web build in `docs/` are both
+  pre-Royal-Oak. Anyone playing either one sees three islands.
+- Shipping it means a new versionCode and a fresh Web export; neither has been done.
 
-Committing it is a one-line fix and has not been done only because nobody has said to.
+That is a deploy decision, not an outstanding piece of work.
 
 ## Releases
 
 - **Play (Android)** — `1.0.1`, versionCode 2, internal track, `com.Isletopia`,
   shipped by `dcfbfa6` (2026-08-01). **Ember / Frost / Harbor only.** Royal Oak was
   written later (2026-08-26) and has never been in a release build.
-- **Web (GitHub Pages)** — served from `docs/` on `origin/main`, i.e. the same
-  three-island build. See the domain note below for the URL situation.
+- **Web (GitHub Pages)** — served from `docs/` on `main`. Still the same
+  three-island build: `6a35b8e` committed Royal Oak's *source* but did not re-export,
+  so `docs/` has not been rebuilt since. See the domain note below for the URL
+  situation.
 - **iOS** — never built. `export_presets.cfg` has a preset but no signing team; this
   is deferred pending an Apple Developer account, not a bug.
 
@@ -99,5 +100,16 @@ cache) appear in the tree. It runs as the first gate inside
 - `bash tools/verify_web_build.sh` — runs the **exported pack**, which is the one
   that matters: the editor's GDScript parser is more permissive than the exported
   build's, and `fe12506` / `f99fec4` are both fixes for scripts that passed the
-  former and blank-screened in the latter. Neither check runs in CI today; both are
-  manual discipline.
+  former and blank-screened in the latter.
+
+`.github/workflows/smoke.yml` now runs the first two automatically on every push to
+`main`, on pull requests, and on demand: the duplicate-file gate, then a
+`godot --headless --import` (a fresh checkout has no `.godot/`, and without the
+import every `class_name` in the project is undeclared), then the smoke suite —
+failing on `SMOKE OK` being absent *or* on any parse/script error in the log, since
+the suite exits 0 either way.
+
+`verify_web_build.sh` is deliberately **not** in CI yet, and it is the check that
+matters most. It needs the ~1 GB export templates and a Web export on the runner;
+the workflow file carries a comment saying exactly what a second job would have to
+do. Until that exists, run it by hand before every deploy.

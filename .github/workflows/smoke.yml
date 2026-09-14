@@ -1,0 +1,75 @@
+# Runs the checks that were previously manual discipline.
+#
+# The project has twice shipped a blank web build from source that looked fine
+# locally (fe12506, f99fec4), and once broken Godot's class-name cache with a
+# stray " 2.gd" duplicate. Both classes of bug are caught by scripts that
+# already live in tools/ — they were just never run automatically.
+#
+# Two gates here, in the order that fails cheapest first:
+#   1. tools/check_no_dupes.sh — no Finder/browser "(2)" duplicates in the tree.
+#   2. godot --headless -- --smoke — the full suite: 4 islands, both Harbor
+#      endings, both Royal Oak endings.
+#
+# NOT here, deliberately: tools/verify_web_build.sh. That one runs the suite
+# inside the *exported* .pck, which is the stricter and more valuable check —
+# the editor's GDScript parser is more permissive than the exported build's,
+# which is exactly how fe12506 happened. It needs the export templates (a
+# ~1 GB .tpz download) and a Web export on the runner, so it is a bigger job
+# than this file: add a second workflow that installs
+# Godot_v4.7.1-stable_export_templates.tpz into ~/.local/share/godot/
+# export_templates/4.7.1.stable/ and runs `godot --headless --export-release
+# "Web" build/web/index.html` before calling the script. Until then
+# verify_web_build.sh stays a manual pre-deploy step, as PROJECT_STATUS.md says.
+
+name: smoke
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      # Must match config/features in project.godot ("4.7"). Pinned to the exact
+      # patch so a Godot point release cannot silently change what CI tests.
+      GODOT_VERSION: 4.7.1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot ${{ env.GODOT_VERSION }} (headless)
+        run: |
+          set -euo pipefail
+          NAME="Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          curl -fsSL -o godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${NAME}.zip"
+          unzip -q godot.zip
+          chmod +x "$NAME"
+          sudo mv "$NAME" /usr/local/bin/godot
+          godot --version
+
+      - name: No "(2)" duplicate files
+        run: bash tools/check_no_dupes.sh
+
+      # .godot/ is gitignored, so a fresh checkout has no import cache and no
+      # global_script_class_cache.cfg. Without this step every `class_name` in
+      # the project is undeclared and the suite dies on a parse error that has
+      # nothing to do with the commit under test. The import itself is expected
+      # to report errors on first run and exit non-zero, hence `|| true`; the
+      # smoke step is what decides pass or fail.
+      - name: Import assets and build the class cache
+        run: godot --headless --import || true
+
+      - name: Smoke suite
+        run: |
+          set -euo pipefail
+          godot --headless -- --smoke 2>&1 | tee smoke.log
+          # The suite prints its verdict rather than setting an exit code, so
+          # grep for it — and fail on script errors even if SMOKE OK appears.
+          if grep -qE "Parse Error|Failed to load script|SCRIPT ERROR" smoke.log; then
+            echo "FAIL: script errors during the run"
+            exit 1
+          fi
+          grep -q "^SMOKE OK" smoke.log || { echo "FAIL: suite did not report SMOKE OK"; exit 1; }
